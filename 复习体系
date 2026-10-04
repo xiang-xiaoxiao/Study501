@@ -1,0 +1,629 @@
+5.4.1 设计目标
+
+复习体系用于管理所有需要长期巩固的学习内容。
+
+包括：
+
+错题
+背诵知识点
+英语单词
+古诗文
+阅读笔记
+作文素材
+
+核心目标：
+
+Plain Text
+降低遗忘率
+ 
+提高掌握度
+ 
+建立长期记忆
+Show more lines
+5.4.2 核心设计原则
+原则1：复习不是打卡
+
+系统关注：
+
+Plain Text
+知识是否掌握
+Show more lines
+
+而不是：
+
+Plain Text
+今天是否打卡
+Show more lines
+原则2：所有学习内容都可复习
+
+复习对象统一。
+
+Plain Text
+错题
+ 
+背诵
+ 
+单词
+ 
+阅读
+ 
+作文
+Show more lines
+
+都采用同一套复习模型。
+
+原则3：根据掌握情况动态调整
+
+记住：
+
+Plain Text
+减少复习频率
+Show more lines
+
+忘记：
+
+Plain Text
+增加复习频率
+Show more lines
+
+而不是固定日期。
+
+5.4.3 复习对象（Review Target）
+
+字段：
+
+Plain Text
+target_type
+Show more lines
+
+支持：
+
+Plain Text
+MISTAKE
+ 
+MEMORY
+ 
+VOCAB
+ 
+READING
+ 
+WRITING
+``
+Show more lines
+示例
+Plain Text
+MISTAKE
+ 
+分数应用题
+``
+Show more lines
+Plain Text
+MEMORY
+ 
+辛亥革命意义
+``
+Show more lines
+Plain Text
+VOCAB
+ 
+although
+Show more lines
+5.4.4 复习计划（Review Plan）
+
+采用「每周连续复习 + 考前专项」模式。
+
+  设计理念：
+    不要求孩子每天使用 iPad，每周集中复习一次。
+    期中/期末考前自动进入专项复习模式。
+
+复习节奏：
+
+  ┌──────────────┬──────────────────────────────────────┐
+  │ 模式          │ 说明                                 │
+  ├──────────────┼──────────────────────────────────────┤
+  │ 每周常规复习 │ 每周一次，复习所有未毕业的项       │
+  │ 期中专项复习 │ 期中考前，按学科+错因筛选集中复习 │
+  │ 期末专项复习 │ 期末考前，按学科+错因筛选集中复习 │
+  └──────────────┴──────────────────────────────────────┘
+
+每周常规复习规则：
+
+  新错题/知识点 → 自动进入每周复习池
+  每周复习日（如周六）：展示所有未毕业项
+  PASS（记住）→ pass_streak + 1
+  PARTIAL（部分记住）→ pass_streak 不变，标记重点关注
+  FAIL（忘了）→ pass_streak 重置为 0
+  连续 PASS ≥ 3 次 → graduated = true，从复习池移除
+
+示例：
+
+  异分母分数加法：
+    第1周：FAIL     → pass_streak = 0
+    第2周：PARTIAL  → pass_streak = 0（标记重点）
+    第3周：PASS     → pass_streak = 1
+    第4周：PASS     → pass_streak = 2
+    第5周：PASS     → pass_streak = 3 → 毕业 ✅
+
+  辛亥革命意义：
+    第1周：PASS     → pass_streak = 1
+    第2周：PASS     → pass_streak = 2
+    第3周：FAIL     → pass_streak = 0（重新累计）
+    第4周：PASS     → pass_streak = 1
+    第5周：PASS     → pass_streak = 2
+    第6周：PASS     → pass_streak = 3 → 毕业 ✅
+Show more lines
+5.4.5 ReviewPlan 表
+
+表名：
+
+Plain Text
+review_plan
+Show more lines
+
+字段：
+
+Plain Text
+id
+ 
+student_id
+ 
+target_type
+ 
+target_id
+ 
+subject_code        ← 学科代码（反规范化，用于按学科筛选）
+ 
+pass_streak          ← 连续 PASS 次数（≥3 则毕业）
+ 
+graduated            ← 是否毕业（boolean）
+ 
+last_review_date     ← 上次复习日期
+ 
+created_at
+Show more lines
+5.4.6 毕业条件
+
+  当 pass_streak ≥ 3 时：
+    graduated = true
+    该项从每周复习池移除
+
+  注意：PARTIAL 不增加也不重置 pass_streak，只标记“重点关注”。
+  FAIL 会将 pass_streak 重置为 0。
+
+查询每周复习列表：
+
+  SELECT * FROM review_plan
+  WHERE student_id = {current}
+    AND graduated = false
+  ORDER BY subject_code, pass_streak ASC
+Show more lines
+5.4.7 ReviewRecord
+
+记录实际复习结果。
+
+表名：
+
+Plain Text
+review_record
+Show more lines
+
+字段：
+
+Plain Text
+id
+ 
+review_plan_id
+ 
+review_date
+ 
+review_result
+ 
+review_comment
+ 
+created_at
+Show more lines
+5.4.8 ReviewResult
+
+字段：
+
+Plain Text
+review_result
+Show more lines
+
+取值：
+
+Plain Text
+PASS
+Show more lines
+
+掌握
+
+Plain Text
+PARTIAL
+Show more lines
+
+部分掌握
+
+Plain Text
+FAIL
+Show more lines
+
+未掌握
+
+示例
+Plain Text
+第3周复习
+ 
+结果：
+ 
+PASS
+ 
+→ pass_streak = 1
+Show more lines
+5.4.9 复习策略
+
+  每周常规复习：
+    展示所有 graduated = false 的项
+    按学科分组，pass_streak 低的优先显示
+    PARTIAL 标记的项加“重点关注”标识
+
+  期中/期末专项复习：
+    进入复习中心 → “开始专项复习”
+    选学科 + 选错因 → 筛选薄弱知识点
+    调用 AI 出题体系（strategy = EXAM_PREP）生成专项习题
+    做题后生成复习报告
+
+  毕业规则：
+    PASS → pass_streak + 1，连续 ≥ 3 次则 graduated = true
+    PARTIAL → pass_streak 不变，标记重点关注
+    FAIL → pass_streak 重置为 0
+Show more lines
+5.4.10 复习状态
+
+字段：
+
+Plain Text
+review_status
+ 
+Show more lines
+
+取值：
+
+Plain Text
+ACTIVE
+ 
+GRADUATED
+Show more lines
+ACTIVE
+
+复习中（在每周复习池内）
+
+GRADUATED
+
+已毕业（连续 3 次 PASS，不再复习）
+
+5.4.11 本周复习中心
+
+系统自动汇总所有未毕业项（graduated = false）：
+
+  本周待复习（按学科分组）：
+
+  数学（3 项）
+    异分母分数加法    pass_streak: 0  ❗ 重点关注
+    分数大小比较      pass_streak: 1
+    通分方法          pass_streak: 2  即将毕业
+
+  英语（2 项）
+    although          pass_streak: 1
+    environment       pass_streak: 0  ❗ 重点关注
+
+  历史（1 项）
+    辛亥革命意义      pass_streak: 2  即将毕业
+
+  毕业统计：本周已毕业 3 项 ✅
+
+5.4.12 系统统计
+
+支持：
+
+  本周复习池总数    → graduated = false 的总项数
+  本周已复习        → 本次已完成的项数
+  完成率              → 已完成 / 总数
+  重点关注项        → pass_streak = 0 且有 PARTIAL 记录的项
+  最易遗忘知识点 → 历史 FAIL 次数最多的项
+  已毕业总数        → graduated = true 的总项数（累计成就）
+``
+Show more lines
+5.4.13 考前专项复习
+
+复习体系除了日常复习，还支持「考前专项复习」模式。
+
+场景：期末考试前，家长想针对某一门学科的特定错因进行集中复习。
+
+操作流程：
+
+  第 1 步：选择学科
+    例如：数学
+
+  第 2 步：选择错因类型（可选）
+    ┌──────────────────┬────────────────────────────────┐
+    │ 错因类型          │ 含义                             │
+    ├──────────────────┼────────────────────────────────┤
+    │ KNOWLEDGE        │ 不会的知识点（知识缺失）         │
+    │ ABILITY          │ 能力不足（理解了但不会应用）     │
+    │ HABIT            │ 粗心/审题错误（习惯问题）       │
+    │ 全部              │ 不筛选错因，复习该学科全部内容 │
+    └──────────────────┴────────────────────────────────┘
+
+  第 3 步：系统汇总数据
+    系统自动查询：
+      SELECT * FROM mistake
+      WHERE student_id = {current}
+        AND subject_code = {selected_subject}
+        AND error_category = {selected_category}  -- 可选
+      → 通过 mistake_knowledge_point 获取关联知识点
+      → 统计各知识点的错误次数和最近掌握度
+
+    展示结果：
+      ┌─────────────────────────────────────────────┐
+      │ 📊 数学 · 知识问题 汇总                       │
+      │                                              │
+      │ 相关错题：32 道                               │
+      │ 涉及知识点：15 个                             │
+      │                                              │
+      │ 最薄弱知识点：                               │
+      │  ❗ 异分母分数加法    错误 8 次  mastery 25  │
+      │  ❗ 通分方法          错误 6 次  mastery 30  │
+      │  ❗ 分数大小比较      错误 5 次  mastery 40  │
+      │  ...                                       │
+      │                                              │
+      │ [ 📝 生成专项练习 ]  [ 📄 打印试卷 ]      │
+      └─────────────────────────────────────────────┘
+
+  第 4 步：生成专项练习
+    → 调用 AI 出题体系（strategy = EXAM_PREP）
+    → 根据筛选出的薄弱知识点生成针对性习题
+    → 支持打印为纸质试卷
+
+  第 5 步：做题验证
+    → 孩子做题（线上或纸质）
+    → 批改后结果录入系统
+    → 对比做题前后 mastery_score 变化
+    → 生成专项复习报告
+
+复习报告示例：
+
+  ┌─────────────────────────────────────────────┐
+  │ 📊 考前专项复习报告                            │
+  │ 学科：数学 | 错因：知识问题 | 日期：2026-01-10 │
+  │                                              │
+  │ 复习前薄弱点：15 个                           │
+  │ 复习后已掌握：10 个（67%）                   │
+  │ 仍薄弱：5 个（建议考后继续复习）           │
+  │                                              │
+  │ 专项练习正确率：72%（18/25）                  │
+  │                                              │
+  │ 已掌握 ✅：异分母分数加法、通分方法...       │
+  │ 待加强 ⚠：分数混合运算、应用题转化...       │
+  └─────────────────────────────────────────────┘
+
+数据来源说明：
+
+  考前专项复习不创建新的 review_plan，而是读取已有数据做聚合分析：
+    mistake + mistake_knowledge_point → 错题和知识点关联
+    error_category → 错因筛选
+    knowledge_mastery → 掌握度查询
+    quiz_session (EXAM_PREP) → 专项练习结果
+
+5.4.14 与其他模块关系
+Plain Text
+LearningRecord
+│
+├─ Mistake
+├─ Memory
+├─ Reading
+├─ Writing
+└─ Vocabulary
+│
+▼
+ReviewPlan
+│
+▼
+ReviewRecord
+Show more lines
+5.4.15 不存储的内容
+
+以下内容通过统计计算：
+
+遗忘率
+
+动态计算。
+
+掌握度
+
+由 Mastery 模块计算。
+
+成长评价
+
+由成长体系生成。
+
+5.4.16 最终设计冻结（Design Frozen）
+
+复习体系核心模型：
+
+Plain Text
+ReviewPlan
+ 
+ReviewRecord
+Show more lines
+
+核心流程：
+
+Plain Text
+学习
+↓
+生成复习计划
+↓
+执行复习
+↓
+记录结果
+↓
+重新计算下一轮复习
+Show more lines
+
+核心目标：
+
+Plain Text
+降低遗忘
+ 
+提高掌握度
+ 
+形成长期记忆
+Show more lines
+数据模型（最终版）
+review_plan
+Plain Text
+id
+student_id
+target_type
+target_id
+planned_date
+review_round
+review_status
+created_at
+ 
+Show more lines
+review_record
+Plain Text
+id
+review_plan_id
+review_date
+review_result
+review_comment
+created_at
+``
+Show more lines
+V1 范围
+
+支持：
+
+Plain Text
+MISTAKE
+MEMORY
+VOCAB
+Show more lines
+
+  说明：MEMORY 类型覆盖背诵体系的所有记忆点，包括古诗文（语文模块 classical_text.stage_completed 事件触发）。
+
+先不支持：
+
+Plain Text
+READING
+WRITING
+Show more lines
+
+原因：
+
+阅读和作文更适合成长跟踪，不适合标准化艾宾浩斯复习。
+
+结论
+
+复习体系定位为：
+
+所有知识内容的统一复习调度中心。
+
+它不关心是错题、背诵还是单词，只负责：
+
+Plain Text
+什么时候复习
+复习结果如何
+下一次什么时候复习
+Show more lines
+
+这是整个 AI 学习成长档案系统的“记忆引擎”。
+
+
+接口约定（Event & Interface Contract）
+════════════════════════════════════
+
+复习体系是全系统的复习调度中心，
+它消费其他模块的「创建」事件，并发出自己的「复习结果」事件。
+
+本模块消费的外部事件（触发生成复习计划）：
+
+  事件 E1：mistake.created（来自错误体系）
+    处理逻辑：
+      创建 review_plan 记录
+      target_type = MISTAKE
+      target_id = mistake_id
+      subject_code = mistake.subject_code    ← 写入学科代码
+      加入每周复习池（graduated=false, pass_streak=0）
+
+  事件 E3：memory_point.created（来自背诵体系）
+    处理逻辑：
+      创建 review_plan 记录
+      target_type = MEMORY
+      target_id = memory_point_id
+      subject_code = memory_point.subject_code    ← 写入学科代码
+      加入每周复习池（graduated=false, pass_streak=0）
+
+  事件 E4：vocabulary.learned（来自单词体系）
+    处理逻辑：
+      创建 review_plan 记录
+      target_type = VOCAB
+      target_id = vocabulary_id
+      subject_code = vocabulary.subject_code    ← 写入学科代码（通常为 ENGLISH）
+      加入每周复习池（graduated=false, pass_streak=0）
+
+本模块发出的事件：
+
+  事件 E5：review.completed
+    触发时机：学生完成一次复习，结果为 PASS 或 PARTIAL
+    携带数据：review_plan_id, target_type, target_id, review_result, pass_streak
+    消费方：
+      → 错误体系：如果 target_type=MISTAKE，更新错题掌握状态
+      → 背诵体系：如果 target_type=MEMORY，更新记忆点状态
+      → 单词体系：如果 target_type=VOCAB，更新 mastery_score
+      → 知识图谱：更新 knowledge_mastery（mastery_score + 增量）
+      → 成长体系：检查经验值（复习完成 +10 EXP）
+      → 复习体系自身：更新 pass_streak，检查毕业条件（≥3则graduated=true）
+
+  事件 E6：review.failed
+    触发时机：学生复习结果为 FAIL
+    携带数据：review_plan_id, target_type, target_id, pass_streak
+    消费方：
+      → 知识图谱：降低 mastery_score（-30）
+      → 各业务模块：根据 target_type 处理失败逻辑
+      → 复习体系自身：pass_streak 重置为 0
+
+  事件：review.graduated
+    触发时机：某项连续 3 次 PASS，正式毕业
+    携带数据：review_plan_id, target_type, target_id, total_reviews
+    消费方：
+      → 成长体系：检查毕业勋章条件
+      → 表扬体系：生成表扬卡
+
+接口数据格式：
+
+  review.completed 事件体：
+    {
+      "event": "review.completed",
+      "review_plan_id": "uuid",
+      "target_type": "MEMORY",
+      "target_id": "uuid",
+      "student_id": "uuid",
+      "review_result": "PASS",
+      "pass_streak": 2,
+      "review_date": "2026-10-11"
+    }
+
+  review.graduated 事件体：
+    {
+      "event": "review.graduated",
+      "review_plan_id": "uuid",
+      "target_type": "MISTAKE",
+      "target_id": "uuid",
+      "student_id": "uuid",
+      "total_reviews": 5,
+      "review_date": "2026-11-08"
+    }

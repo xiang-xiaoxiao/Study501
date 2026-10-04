@@ -1,0 +1,496 @@
+5.6.1 设计目标
+
+阅读体系用于长期记录学生阅读成长过程。
+
+适用范围：
+
+课外阅读
+名著阅读
+科普阅读
+历史阅读
+英文阅读
+学校推荐阅读
+
+核心目标：
+
+Plain Text
+阅读
+↓
+思考
+↓
+积累
+↓
+成长
+Show more lines
+
+建立长期阅读档案，而非简单阅读打卡记录。
+
+5.6.2 核心设计原则
+原则1：记录结果，不记录过程
+
+系统关注：
+
+Plain Text
+读完了什么书
+Show more lines
+
+而不是：
+
+Plain Text
+今天读了多少页
+``
+Show more lines
+
+原因：
+
+Plain Text
+纸质书难以自动追踪
+ 
+过程记录成本高
+ 
+容易放弃
+Show more lines
+原则2：坚持低成本记录
+
+每本书记录时间应控制在：
+
+Plain Text
+30秒以内
+Show more lines
+
+推荐记录内容：
+
+书名
+完成时间
+喜欢程度
+一句话感想
+原则3：阅读重于打卡
+
+系统不统计：
+
+Plain Text
+连续阅读天数
+Show more lines
+
+作为主要指标。
+
+更关注：
+
+Plain Text
+读过什么
+ 
+喜欢什么
+ 
+成长了什么
+Show more lines
+原则4：长期积累
+
+阅读体系定位：
+
+Plain Text
+5~10年阅读成长档案
+Show more lines
+5.6.3 Reading Book
+
+定义：
+
+一本已经开始或完成阅读的书籍。
+
+ReadingBook 表
+
+表名：
+
+Plain Text
+reading_book
+Show more lines
+
+字段：
+
+Plain Text
+id
+Show more lines
+
+主键
+
+Plain Text
+student_id
+Show more lines
+
+学生ID
+
+Plain Text
+book_name
+Show more lines
+
+书名
+
+例如：
+
+Plain Text
+夏洛的网
+ 
+昆虫记
+ 
+三体
+Show more lines
+Plain Text
+author
+Show more lines
+
+作者
+
+Plain Text
+category
+Show more lines
+
+分类
+
+Plain Text
+cover_image_url
+``
+Show more lines
+
+封面图片
+
+Plain Text
+language
+Show more lines
+
+语言
+
+例如：
+
+Plain Text
+CHINESE
+ 
+ENGLISH
+ 
+Show more lines
+Plain Text
+start_date
+Show more lines
+
+开始阅读时间
+
+Plain Text
+finish_date
+Show more lines
+
+完成阅读时间
+
+Plain Text
+created_at
+Show more lines
+
+创建时间
+
+Plain Text
+updated_at
+Show more lines
+
+更新时间
+
+5.6.4 阅读分类
+
+字段：
+
+Plain Text
+category
+Show more lines
+
+取值：
+
+Plain Text
+LITERATURE
+文学
+ 
+SCIENCE
+科普
+ 
+HISTORY
+历史
+ 
+BIOGRAPHY
+传记
+ 
+NOVEL
+小说
+ 
+ENGLISH
+英文阅读
+ 
+OTHER
+其他
+Show more lines
+5.6.5 阅读状态
+
+字段：
+
+Plain Text
+reading_status
+ 
+Show more lines
+
+取值：
+
+Plain Text
+PLANNED
+ 
+READING
+ 
+FINISHED
+Show more lines
+PLANNED
+
+计划阅读
+
+READING
+
+阅读中
+
+FINISHED
+
+已完成
+
+5.6.6 阅读感想
+
+阅读体系最重要的数据之一。
+
+ReadingReflection
+
+表名：
+
+Plain Text
+reading_reflection
+Show more lines
+
+字段：
+
+Plain Text
+id
+ 
+book_id
+ 
+favorite_character
+ 
+favorite_sentence
+ 
+biggest_takeaway
+ 
+reflection
+ 
+created_at
+Show more lines
+
+建议采用轻量模式。
+
+最喜欢的人物
+
+例如：
+
+Plain Text
+夏洛
+Show more lines
+最喜欢的一句话
+
+例如：
+
+Plain Text
+你一直是我的朋友
+Show more lines
+最大收获
+
+例如：
+
+Plain Text
+真正的朋友会帮助你
+Show more lines
+阅读感想
+
+支持自由填写。
+
+不强制作文形式。
+
+5.6.7 AI阅读伙伴
+
+读完一本书后允许AI发起互动。
+
+示例：
+
+Plain Text
+你最喜欢哪个角色？
+ 
+为什么？
+ 
+如果是你会怎么做？
+Show more lines
+
+目的：
+
+Plain Text
+帮助思考
+ 
+而不是考试
+Show more lines
+5.6.8 阅读统计
+
+系统支持：
+
+本年阅读量
+
+例如：
+
+Plain Text
+已阅读 18 本
+Show more lines
+累计阅读量
+
+例如：
+
+Plain Text
+累计阅读 85 本
+Show more lines
+最喜欢类别
+
+例如：
+
+Plain Text
+科幻小说
+Show more lines
+阅读分布
+
+例如：
+
+Plain Text
+文学：40%
+ 
+科普：25%
+ 
+历史：20%
+ 
+其他：15%
+Show more lines
+5.6.9 年度书架
+
+阅读体系核心展示形式。
+
+系统自动生成：
+
+Plain Text
+2026书架
+ 
+✅ 夏洛的网
+ 
+✅ 昆虫记
+ 
+✅ 海底两万里
+ 
+✅ 神秘岛
+ 
+✅ 哈利波特1
+Show more lines
+
+目的：
+
+Plain Text
+让孩子看到自己读过什么
+Show more lines
+
+而不是：
+
+Plain Text
+读了多少天
+Show more lines
+5.6.10 阅读成长报告
+
+按年生成：
+
+例如：
+
+Plain Text
+2026阅读报告
+ 
+完成书籍：
+15本
+ 
+累计阅读：
+4200页
+ 
+最喜欢类型：
+科幻
+ 
+最喜欢作者：
+刘慈欣
+ 
+阅读关键词：
+探索
+科技
+未来
+Show more lines
+5.6.11 与 LearningRecord 关系
+
+关系模型：
+
+Plain Text
+LearningRecord
+│
+└── ReadingBook
+│
+└── ReadingReflection
+Show more lines
+LearningRecord 类型
+Plain Text
+READING
+Show more lines
+
+对应：
+
+Plain Text
+一本书的阅读记录
+Show more lines
+
+
+接口约定（Event & Interface Contract）
+════════════════════════════════════
+
+本模块发出的事件：
+
+  事件 E7：reading.finished
+    触发时机：学生完成一本书的阅读（reading_status 变为 FINISHED）
+    携带数据：book_id, student_id, book_name, category
+    消费方：
+      → 学习记录：创建 learning_record（record_type=READING）
+      → 成长体系：检查 MASTERY 类勋章（阅读小书虫、阅读达人、阅读博士）
+      → 成长体系：经验值 +20 EXP
+      → 表扬体系：检查是否生成 MILESTONE 表扬卡
+      → 学习画像：更新阅读偏好统计
+
+  事件：reflection.created
+    触发时机：学生写一篇阅读感想
+    携带数据：reflection_id, book_id, student_id
+    消费方：
+      → 成长体系：检查 HABIT 类勋章（感想家）
+      → 成长体系：经验值 +10 EXP
+
+  事件：reading.category_milestone
+    触发时机：某个分类的阅读书籍数达到里程碑（3/5/10 本）
+    携带数据：student_id, category, book_count
+    消费方：
+      → 成长体系：检查 EXPLORATION 类勋章（阅读冒险家、博学家）
+
+本模块消费的外部事件：
+
+  无。阅读体系是独立模块，不消费其他模块的事件。
+  阅读行为由家长或学生主动触发。
+
+接口数据格式：
+
+  reading.finished 事件体：
+    {
+      "event": "reading.finished",
+      "book_id": "uuid",
+      "student_id": "uuid",
+      "book_name": "夏洛的网",
+      "category": "LITERATURE",
+      "finish_date": "2026-10-15"
+    }

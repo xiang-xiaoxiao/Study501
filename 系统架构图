@@ -1,0 +1,254 @@
+系统架构图（System Architecture Diagram）
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+定位：AI 学习成长档案系统的全局架构总览
+版本：V1.0 Design Final
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+一、全局架构（四层）
+════════════════
+
+┌─────────────────────────────────────────────────────────┐
+│              表现层（Next.js Web App / PWA）               │
+│                                                           │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐        │
+│  │ 首页 │ │错题  │ │复习  │ │成长  │ │ 我的 │  ← Tab  │
+│  └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘        │
+│     └────────┴────────┴────────┴────────┴───┘        │
+│                                                           │
+│  扩展页：知识图谱 · 训练中心 · 语文中心 · 英语能力树   │
+│         阅读中心 · 审核中心 · 表扬卡 · 学习画像         │
+│         成绩追踪 · 设置 · 学生切换                      │
+└──────────────────────┬──────────────────────────────────┘
+                       │ 用户操作 / 数据读取
+┌──────────────────────▼──────────────────────────────────┐
+│                  业务层（17 个体系）                       │
+│                                                           │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐          │
+│  │ 学习记录模型│ │  错误体系   │ │  背诵体系   │  ← 内容  │
+│  │ (统一入口)  │ │ AI分析+审核│ │ 记忆+问答卡│    采集层  │
+│  └─────┬──────┘ └─────┬──────┘ └─────┬──────┘          │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐          │
+│  │  单词体系   │ │  阅读体系   │ │  语文模块   │          │
+│  │ 全生命周期  │ │ 档案+感想  │ │ 读写练习   │          │
+│  └─────┬──────┘ └─────┬──────┘ └────────────┘          │
+│  ┌────────────┐ ┌────────────┐                          │
+│  │英语能力树  │ │  知识图谱   │                          │
+│  │语法+阅读+写│ │ 5级层级+   │                          │
+│  │作          │ │ 掌握度追踪 │                          │
+│  └────────────┘ └────────────┘                          │
+│                                                           │
+│  ┌───────────────────────────────────────────────┐      │
+│  │           复习体系（每周连续 + 考前专项）         │      │
+│  │  每周复习：review_plan (graduated=false)           │      │
+│  │           → PASS≥3次 → graduated=true（毕业）  │      │
+│  │  考前专项：期中/期末 → 选学科+错因            │      │
+│  │           → AI出题 (EXAM_PREP) → 复习报告      │      │
+│  └───────────────────────────────────────────────┘      │
+│                                                           │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐          │
+│  │ AI 出题    │ │  成长体系   │ │  表扬体系   │  ← 引擎  │
+│  │5种出题策略 │ │ 勋章+经验值│ │ 表扬卡     │    层     │
+│  │含EXAM_PREP │ │ +成长等级  │ │ +模板      │          │
+│  └────────────┘ └────────────┘ └────────────┘          │
+│  ┌────────────┐ ┌────────────┐                          │
+│  │ 成绩追踪   │ │ 学习画像   │  ← 汇聚层                │
+│  │分数+有效性 │ │ 多维画像   │                          │
+│  │评估(4维度) │ │ +报告      │                          │
+│  └────────────┘ └────────────┘                          │
+└──────────────────────┬──────────────────────────────────┘
+                       │ 事件驱动（13 个事件）
+                       │
+                       │ E1  mistake.created     E7  reading.finished
+                       │ E2  mistake.reviewed    E8  mastery.milestone
+                       │ E3  memory_point.created E9  streak.achieved
+                       │ E4  vocabulary.learned  E10 weakness.detected
+                       │ E5  review.completed    E11 exam_score.recorded
+                       │ E6  review.failed       E12 review.graduated
+                       │ E13 training.mastered
+                       │
+┌──────────────────────▼──────────────────────────────────┐
+│                 核心层（共享数据模型）                     │
+│                                                           │
+│  ┌────────────────────────────┐ ┌─────────────────────┐ │
+│  │     LearningRecord (根)     │ │   KnowledgePoint    │ │
+│  │  10 种 record_type:         │ │   5 级层级树        │ │
+│  │  MISTAKE · MEMORY · VOCAB   │ │   + knowledge_mastery│ │
+│  │  READING · WRITING · REVIEW │ │   + mistake_kp      │ │
+│  │  GRAMMAR_PRACTICE            │ │   + kp_relation     │ │
+│  │  ENGLISH_READING             │ └─────────────────────┘ │
+│  │  CHINESE_READING             │ ┌─────────────────────┐ │
+│  └────────────────────────────┘ │      Student         │ │
+│                                   │   (学生档案)        │ │
+│                                   └─────────────────────┘ │
+└──────────────────────┬──────────────────────────────────┘
+                       │ Supabase API
+┌──────────────────────▼──────────────────────────────────┐
+│            基础设施层（Supabase + AI）                     │
+│                                                           │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐             │
+│  │PostgreSQL│  │ Storage  │  │  Edge    │             │
+│  │ 42 张表  │  │ 图片存储 │  │Functions │             │
+│  └──────────┘  └──────────┘  └──────────┘             │
+│  ┌──────────┐  ┌──────────┐                             │
+│  │ pgvector │  │ OCR 引擎 │                             │
+│  │ 向量检索 │  │百度/腾讯 │                             │
+│  └──────────┘  └──────────┘                             │
+│                                                           │
+│  ┌──────────────────────────────────────────┐           │
+│  │  AI 分析管道（DeepSeek / Qwen）            │           │
+│  │  错题分析 · 知识点匹配 · 出题生成 · 作文  │           │
+│  └──────────────────────────────────────────┘           │
+└──────────────────────────────────────────────────────────┘
+
+
+二、数据表总览（42 张）
+══════════════════
+
+  核心层（8）     student · app_settings · semester · learning_record
+                  knowledge_point · knowledge_point_relation
+                  knowledge_mastery · mistake_knowledge_point
+
+  错误体系（3）   mistake · mistake_review · error_type
+
+  背诵体系（2）   memory_point · memory_mastery
+
+  单词体系（4）   vocabulary · vocabulary_mastery · word_book
+                  word_book_item
+
+  阅读体系（2）   reading_book · reading_record
+
+  复习体系（2）   review_plan (含 subject_code)
+                  review_record
+
+  成绩追踪（2）   exam · exam_score
+
+  成长体系（4）   achievement_definition · achievement_record
+                  student_growth · exp_log
+
+  表扬体系（2）   praise_card · praise_template
+
+  AI 出题（3）    question · quiz_session · quiz_answer
+                  strategy: WEAKNESS_FOCUS · REVIEW_PRACTICE
+                  DAILY_MIX · PRE_REQUISITE · EXAM_PREP
+
+  英语能力树（3） english_grammar_practice
+                  english_reading_practice · english_writing
+
+  语文模块（2）   chinese_reading_practice · chinese_essay
+
+  学习画像（2）   student_profile · profile_report
+
+
+三、事件总览（11 个）
+════════════════
+
+  高优先级（V1）：
+    E1  mistake.created        错误体系 → 复习体系·知识图谱·学习记录
+    E2  mistake.reviewed       错误体系 → 知识图谱·复习体系·成长体系
+    E3  memory_point.created   背诵体系 → 复习体系·学习记录
+    E4  vocabulary.learned     单词体系 → 复习体系·知识图谱·学习记录
+    E5  review.completed       复习体系 → 知识图谱·成长体系·自身
+    E6  review.failed          复习体系 → 知识图谱·自身·成长体系
+
+  中优先级（V2）：
+    E7  reading.finished       阅读体系 → 学习记录·成长体系·表扬体系
+    E8  mastery.milestone      知识图谱 → 成长体系·表扬体系
+    E9  streak.achieved        学习记录 → 成长体系·表扬体系
+    E11 exam_score.recorded    成绩追踪 → 学习画像·成长体系·表扬体系
+
+  低优先级（V3）：
+    E10 weakness.detected      知识图谱 → AI出题·家长通知
+
+
+四、核心数据流：考前专项复习
+══════════════════════
+
+  家长选择学科 + 错因类型
+          │
+          ▼
+  ┌──────────────────────────────────────────────┐
+  │ 复习体系 · 考前专项模式                        │
+  │                                                │
+  │  mistake (WHERE subject_code=X                 │
+  │          AND error_category=Y)                 │
+  │      ↓                                         │
+  │  mistake_knowledge_point → 关联知识点          │
+  │      ↓                                         │
+  │  knowledge_mastery → 按薄弱度排序              │
+  │      ↓                                         │
+  │  汇总展示：错题数 · 知识点数 · 薄弱排名        │
+  └───────────────────┬──────────────────────────┘
+                      │
+                      ▼
+  ┌──────────────────────────────────────────────┐
+  │ AI 出题体系 · strategy = EXAM_PREP             │
+  │                                                │
+  │  输入：筛选后的薄弱知识点列表                    │
+  │  规则：按错误频率排序 · 每个KP至少2题           │
+  │  输出：专项练习卷（线上做题 / 打印纸质）        │
+  └───────────────────┬──────────────────────────┘
+                      │
+                      ▼
+  ┌──────────────────────────────────────────────┐
+  │ 做题 + 批改                                    │
+  │                                                │
+  │  quiz_session → quiz_answer → mastery 更新     │
+  │      ↓                                         │
+  │  考前专项复习报告                               │
+  │  复习前薄弱点 vs 复习后已掌握 · 正确率 · 建议  │
+  └──────────────────────────────────────────────┘
+
+
+五、核心数据流：日常学习闭环
+══════════════════════
+
+  拍照上传错题
+      │
+      ▼
+  学习记录模型 → 创建 LearningRecord (record_type=MISTAKE)
+      │
+      ▼
+  错误体系 → AI 分析错因 + 知识点匹配 + 人工审核
+      │
+      ▼
+  mistake.created (E1)
+      │
+      ├─→ 复习体系 → 生成 review_plan (含 subject_code)
+      │   六轮计划：Day1/3/7/15/30/60
+      │
+      ├─→ 知识图谱 → 更新 error_count + mastery_score
+      │
+      └─→ 学习记录 → 创建子表记录 (mistake)
+      │
+      ▼
+  复习到期 → 展示复习卡片 → 判断 PASS / PARTIAL / FAIL
+      │
+      ├─→ review.completed (E5) → mastery 上升 → 生成下一轮
+      │
+      └─→ review.failed (E6) → mastery 下降 → 重置为 Day1
+      │
+      ▼
+  考试成绩录入 → exam_score.recorded (E11)
+      │
+      └─→ 成绩追踪 → 4 维度有效性评估
+          错题攻克率 · 复习有效率 · 训练有效率 · 成绩趋势
+
+
+六、技术栈
+════════
+
+  前端：Next.js + Tailwind CSS + shadcn/ui（Web App / PWA，手机添加到主屏幕）
+  部署：Vercel（免费托管，无需上架应用商店）
+  后端：Supabase (PostgreSQL + Storage + Edge Functions + Realtime)
+  AI ：DeepSeek / Qwen API（错题分析、知识点匹配、出题生成）
+  OCR ：百度 OCR / 腾讯 OCR
+  向量：pgvector（知识点语义检索）
+
+  部署模式：单人操作，无登录认证，无角色权限
+  存储模式：全量云端，无本机数据库（无 SQLite）
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+状态：V1.0 Design Final

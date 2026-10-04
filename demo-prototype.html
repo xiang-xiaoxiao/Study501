@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI学习成长档案 - 原型Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    background: #FFF0F5;
+    color: #4A4A4A;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── 顶部栏 ── */
+  .top-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 24px;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .student-info { display: flex; align-items: center; gap: 12px; }
+  .avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(135deg, #FFB6C1, #E6E6FA);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .avatar:hover { transform: scale(1.1); }
+  .greeting { font-size: 18px; font-weight: 600; }
+  .greeting span { color: #999; font-size: 14px; font-weight: 400; }
+  .switch-btn {
+    padding: 6px 14px; border-radius: 20px;
+    background: #FFF0F5; border: 1px solid #FFB6C1;
+    color: #FFB6C1; font-size: 13px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .switch-btn:hover { background: #FFB6C1; color: white; }
+
+  /* ── 主布局 ── */
+  .main-layout { display: flex; min-height: calc(100vh - 76px - 64px); }
+  .sidebar {
+    width: 200px; background: white; padding: 20px 12px;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.03);
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .nav-item {
+    padding: 12px 16px; border-radius: 12px;
+    cursor: pointer; font-size: 15px;
+    transition: all 0.2s; display: flex; align-items: center; gap: 10px;
+  }
+  .nav-item:hover { background: #FFF0F5; }
+  .nav-item.active { background: #FFB6C1; color: white; font-weight: 600; }
+  .nav-item .icon { font-size: 18px; }
+
+  .content { flex: 1; padding: 24px; overflow-y: auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── 卡片 ── */
+  .card {
+    background: white; border-radius: 16px;
+    padding: 20px; margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .card-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+
+  /* ── 首页统计 ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: white; border-radius: 16px; padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    text-align: center; transition: transform 0.2s;
+    cursor: pointer;
+  }
+  .stat-card:hover { transform: translateY(-3px); }
+  .stat-card .number { font-size: 32px; font-weight: 700; margin: 8px 0 4px; }
+  .stat-card .label { font-size: 13px; color: #999; }
+  .stat-card.pink { border-top: 4px solid #FFB6C1; }
+  .stat-card.pink .number { color: #FFB6C1; }
+  .stat-card.lavender { border-top: 4px solid #E6E6FA; }
+  .stat-card.lavender .number { color: #C8A2C8; }
+  .stat-card.mint { border-top: 4px solid #98FB98; }
+  .stat-card.mint .number { color: #66BB6A; }
+  .stat-card.peach { border-top: 4px solid #FFDAB9; }
+  .stat-card.peach .number { color: #E8976D; }
+
+  /* ── 复习列表 ── */
+  .review-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px; border-radius: 12px;
+    background: white; margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    transition: all 0.2s; cursor: pointer;
+  }
+  .review-item:hover { background: #FFF8FA; transform: translateX(4px); }
+  .review-item .subject-tag {
+    padding: 4px 12px; border-radius: 20px;
+    font-size: 12px; font-weight: 500; color: white;
+    white-space: nowrap;
+  }
+  .tag-math { background: #FFB6C1; }
+  .tag-english { background: #C8A2C8; }
+  .tag-history { background: #98FB98; color: #4A4A4A; }
+  .tag-chinese { background: #FFDAB9; }
+  .review-item .title { flex: 1; font-size: 15px; }
+  .review-item .streak-badge {
+    padding: 3px 10px; border-radius: 12px;
+    font-size: 12px; font-weight: 500;
+    white-space: nowrap;
+  }
+  .streak-0 { background: #FFE0E0; color: #D32F2F; }
+  .streak-1 { background: #FFDAB9; color: #BF6B3A; }
+  .streak-2 { background: #E6E6FA; color: #7B68AE; }
+  .streak-3 { background: #98FB98; color: #2E7D32; }
+  .review-item .checkbox {
+    width: 22px; height: 22px; border-radius: 6px;
+    border: 2px solid #ddd; cursor: pointer;
+    transition: all 0.2s; display: flex;
+    align-items: center; justify-content: center;
+  }
+  .review-item .checkbox.checked {
+    background: #FFB6C1; border-color: #FFB6C1;
+  }
+  .review-item .checkbox.checked::after {
+    content: '✓'; color: white; font-size: 14px;
+  }
+
+  /* ── 按钮 ── */
+  .btn-primary {
+    display: inline-block; padding: 12px 32px;
+    background: linear-gradient(135deg, #FFB6C1, #E6E6FA);
+    color: white; border: none; border-radius: 12px;
+    font-size: 16px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; margin-top: 16px;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(255,182,193,0.4); }
+
+  .btn-outline {
+    display: inline-block; padding: 10px 24px;
+    background: white; color: #FFB6C1;
+    border: 2px solid #FFB6C1; border-radius: 12px;
+    font-size: 14px; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-outline:hover { background: #FFB6C1; color: white; }
+
+  /* ── 考前专项卡片 ── */
+  .exam-prep-card {
+    background: linear-gradient(135deg, #FFB6C1 0%, #E6E6FA 50%, #98FB98 100%);
+    border-radius: 20px; padding: 28px; color: white;
+    margin-bottom: 20px; position: relative; overflow: hidden;
+  }
+  .exam-prep-card::after {
+    content: ''; position: absolute; top: -20px; right: -20px;
+    width: 120px; height: 120px; border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+  }
+  .exam-prep-card h3 { font-size: 20px; margin-bottom: 8px; }
+  .exam-prep-card p { opacity: 0.9; font-size: 14px; margin-bottom: 16px; }
+  .exam-prep-card .btn {
+    padding: 10px 24px; background: rgba(255,255,255,0.25);
+    border: 1px solid rgba(255,255,255,0.5); border-radius: 10px;
+    color: white; cursor: pointer; font-size: 14px;
+    transition: all 0.2s; backdrop-filter: blur(4px);
+  }
+  .exam-prep-card .btn:hover { background: rgba(255,255,255,0.4); }
+
+  /* ── 统计区 ── */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .mini-stat {
+    background: #FFF8FA; border-radius: 12px; padding: 14px;
+    text-align: center;
+  }
+  .mini-stat .val { font-size: 20px; font-weight: 700; color: #FFB6C1; }
+  .mini-stat .lbl { font-size: 12px; color: #999; margin-top: 4px; }
+
+  /* ── 进度条 ── */
+  .progress-bar {
+    height: 8px; background: #F0E6EF; border-radius: 4px;
+    overflow: hidden; margin-top: 6px;
+  }
+  .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+
+  /* ── 错题卡片 ── */
+  .mistake-card {
+    display: flex; gap: 16px; background: white;
+    border-radius: 16px; padding: 16px; margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .mistake-card:hover { transform: translateY(-2px); }
+  .mistake-thumb {
+    width: 80px; height: 80px; border-radius: 12px;
+    background: linear-gradient(135deg, #FFF0F5, #E6E6FA);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; flex-shrink: 0;
+  }
+  .mistake-info { flex: 1; }
+  .mistake-info h4 { font-size: 15px; margin-bottom: 6px; }
+  .mistake-tags { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+  .mistake-tag {
+    padding: 2px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 500;
+  }
+  .mistake-meta { font-size: 12px; color: #999; }
+  .mastery-bar {
+    height: 6px; background: #F0E6EF; border-radius: 3px;
+    margin-top: 8px; overflow: hidden;
+  }
+  .mastery-fill { height: 100%; border-radius: 3px; }
+
+  /* ── 成长页 ── */
+  .growth-header {
+    text-align: center; padding: 32px 0;
+    background: linear-gradient(135deg, #FFF0F5, #E6E6FA);
+    border-radius: 20px; margin-bottom: 20px;
+  }
+  .growth-header .level {
+    font-size: 48px; font-weight: 800;
+    background: linear-gradient(135deg, #FFB6C1, #E6E6FA);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .growth-header .exp { color: #999; margin-top: 8px; }
+  .badge-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .badge-item {
+    text-align: center; padding: 16px 8px;
+    background: white; border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    transition: transform 0.2s; cursor: pointer;
+  }
+  .badge-item:hover { transform: scale(1.05); }
+  .badge-item .emoji { font-size: 36px; margin-bottom: 6px; }
+  .badge-item .name { font-size: 12px; color: #4A4A4A; }
+  .badge-item.locked { opacity: 0.4; }
+
+  /* ── 我的页 ── */
+  .profile-card {
+    display: flex; align-items: center; gap: 16px;
+    background: white; border-radius: 16px; padding: 20px;
+    margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .profile-avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, #FFB6C1, #E6E6FA);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+  }
+  .profile-info h3 { font-size: 18px; margin-bottom: 4px; }
+  .profile-info p { font-size: 14px; color: #999; }
+  .settings-list { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .settings-item {
+    padding: 16px 20px; display: flex;
+    justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #FFF0F5; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .settings-item:last-child { border-bottom: none; }
+  .settings-item:hover { background: #FFF8FA; }
+  .settings-item .arrow { color: #ddd; }
+
+  /* ── 复习卡片弹窗 ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.3); z-index: 100;
+    justify-content: center; align-items: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.show { display: flex; }
+  .review-modal {
+    background: white; border-radius: 24px; padding: 32px;
+    max-width: 480px; width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .review-modal .subject { font-size: 13px; color: #999; margin-bottom: 4px; }
+  .review-modal .question { font-size: 20px; font-weight: 600; margin-bottom: 20px; line-height: 1.5; }
+  .review-modal .round { font-size: 13px; color: #C8A2C8; margin-bottom: 16px; }
+  .review-btns { display: flex; gap: 12px; }
+  .review-btns button {
+    flex: 1; padding: 14px; border-radius: 12px;
+    border: none; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-pass { background: #98FB98; color: #2E7D32; }
+  .btn-partial { background: #FFDAB9; color: #BF6B3A; }
+  .btn-fail { background: #FFB6C1; color: white; }
+  .btn-pass:hover, .btn-partial:hover, .btn-fail:hover { transform: translateY(-2px); }
+
+  /* ── 底部导航（手机端备用）── */
+  .bottom-nav {
+    display: none;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: white; padding: 8px 0 12px;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+    z-index: 50;
+  }
+
+  /* ── 通知 ── */
+  .toast {
+    position: fixed; top: 20px; right: 20px;
+    background: white; border-radius: 12px; padding: 14px 20px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    font-size: 14px; z-index: 200;
+    transform: translateX(120%); transition: transform 0.3s ease;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .toast.show { transform: translateX(0); }
+
+  /* ── 两列布局 ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  /* ── 错题学科概览卡片 ── */
+  .subject-overview {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px;
+  }
+  .subj-card {
+    background: white; border-radius: 16px; padding: 16px; text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); cursor: pointer; transition: all 0.2s;
+    border-top: 3px solid transparent;
+  }
+  .subj-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .subj-card.active { border-top-color: #FFB6C1; background: #FFF8FA; }
+  .subj-card .subj-icon { font-size: 28px; margin-bottom: 6px; }
+  .subj-card .subj-name { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .subj-card .subj-stats { font-size: 12px; color: #999; }
+  .subj-card .subj-stats .new-count { color: #FFB6C1; font-weight: 700; font-size: 16px; }
+  .subj-card .subj-stats .total-count { color: #4A4A4A; font-weight: 700; font-size: 16px; }
+
+  /* ── 错题详情弹窗 ── */
+  .detail-modal {
+    background: white; border-radius: 24px; padding: 0; max-width: 600px; width: 92%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15); animation: slideUp 0.3s ease;
+    max-height: 85vh; overflow-y: auto;
+  }
+  .detail-header {
+    padding: 24px 24px 16px; border-bottom: 1px solid #FFF0F5;
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .detail-body { padding: 20px 24px; }
+  .detail-section { margin-bottom: 20px; }
+  .detail-section h4 { font-size: 14px; color: #999; margin-bottom: 8px; font-weight: 500; }
+  .kp-chip {
+    display: inline-block; padding: 6px 14px; border-radius: 20px;
+    font-size: 13px; margin: 4px 4px 4px 0; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .kp-chip:hover { transform: scale(1.05); }
+  .related-card {
+    padding: 12px; border-radius: 12px; background: #FFF8FA;
+    margin-bottom: 8px; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .related-card:hover { background: #FFF0F5; transform: translateX(4px); }
+  .close-btn {
+    width: 32px; height: 32px; border-radius: 50%; border: none;
+    background: #F5F5F5; cursor: pointer; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .close-btn:hover { background: #FFE0E0; }
+
+  @media (max-width: 768px) {
+    .subject-overview { grid-template-columns: repeat(3, 1fr); }
+    .sidebar { display: none; }
+    .bottom-nav { display: flex; justify-content: space-around; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .two-col { grid-template-columns: 1fr; }
+    .badge-grid { grid-template-columns: repeat(3, 1fr); }
+    .content { padding: 16px; padding-bottom: 80px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 顶部栏 -->
+<div class="top-bar">
+  <div class="student-info">
+    <div class="avatar" onclick="switchStudent()">🌸</div>
+    <div class="greeting" id="greeting">下午好，小美 <span>· 四年级</span></div>
+  </div>
+  <button class="switch-btn" onclick="switchStudent()">🔄 切换学生</button>
+</div>
+
+<div class="main-layout">
+  <!-- 侧边导航 -->
+  <div class="sidebar">
+    <div class="nav-item active" onclick="showPage('home', this)">
+      <span class="icon">🏠</span> 首页
+    </div>
+    <div class="nav-item" onclick="showPage('mistakes', this)">
+      <span class="icon">📚</span> 错题中心
+    </div>
+    <div class="nav-item" onclick="showPage('review', this)">
+      <span class="icon">✏️</span> 复习中心
+    </div>
+    <div class="nav-item" onclick="showPage('growth', this)">
+      <span class="icon">🌟</span> 成长中心
+    </div>
+    <div class="nav-item" onclick="showPage('profile', this)">
+      <span class="icon">👤</span> 我的
+    </div>
+    <div style="padding:8px 16px;font-size:11px;color:#ccc;margin-top:12px;">── 扩展页 ──</div>
+    <div class="nav-item" onclick="showPage('knowledge', this)">
+      <span class="icon">🗺️</span> 知识图谱
+    </div>
+    <div class="nav-item" onclick="showPage('training', this)">
+      <span class="icon">🎯</span> 训练中心
+    </div>
+    <div class="nav-item" onclick="showPage('scores', this)">
+      <span class="icon">📊</span> 成绩追踪
+    </div>
+    <div class="nav-item" onclick="showPage('praise', this)">
+      <span class="icon">💌</span> 表扬卡
+    </div>
+    <div class="nav-item" onclick="showPage('portrait', this)">
+      <span class="icon">🧩</span> 学习画像
+    </div>
+    <div class="nav-item" onclick="showPage('chinese', this)">
+      <span class="icon">📖</span> 语文中心
+    </div>
+    <div class="nav-item" onclick="showPage('english', this)">
+      <span class="icon">🔤</span> 英语能力树
+    </div>
+    <div class="nav-item" onclick="showPage('reading', this)">
+      <span class="icon">📕</span> 阅读中心
+    </div>
+    <div class="nav-item" onclick="showPage('approval', this)">
+      <span class="icon">✅</span> 审核中心
+    </div>
+    <div class="nav-item" onclick="showPage('settings', this)">
+      <span class="icon">⚙️</span> 设置
+    </div>
+  </div>
+
+  <!-- 内容区 -->
+  <div class="content">
+
+    <!-- ═══ 首页 ═══ -->
+    <div id="page-home" class="page active">
+      <div class="stats-grid">
+        <div class="stat-card pink">
+          <div class="label">📝 本周待复习</div>
+          <div class="number">5</div>
+          <div class="label">项</div>
+        </div>
+        <div class="stat-card lavender">
+          <div class="label">📚 本周错题</div>
+          <div class="number">12</div>
+          <div class="label">道</div>
+        </div>
+        <div class="stat-card mint">
+          <div class="label">🔥 连续学习</div>
+          <div class="number">7</div>
+          <div class="label">天</div>
+        </div>
+        <div class="stat-card peach">
+          <div class="label">✨ 成长经验</div>
+          <div class="number">320</div>
+          <div class="label">EXP</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🌷 本周待复习（6 项）</div>
+        <div class="review-item" onclick="startReview()">
+          <div class="checkbox" onclick="toggleCheck(event, this)"></div>
+          <span class="subject-tag tag-math">数学</span>
+          <span class="title">异分母分数加法</span>
+          <span class="streak-badge streak-0">❗重点</span>
+        </div>
+        <div class="review-item" onclick="startReview()">
+          <div class="checkbox" onclick="toggleCheck(event, this)"></div>
+          <span class="subject-tag tag-english">英语</span>
+          <span class="title">although</span>
+          <span class="streak-badge streak-1">连续1次</span>
+        </div>
+        <div class="review-item" onclick="startReview()">
+          <div class="checkbox" onclick="toggleCheck(event, this)"></div>
+          <span class="subject-tag tag-history">历史</span>
+          <span class="title">辛亥革命意义</span>
+          <span class="streak-badge streak-2">连续2次 ✨</span>
+        </div>
+        <div class="review-item" onclick="startReview()">
+          <div class="checkbox" onclick="toggleCheck(event, this)"></div>
+          <span class="subject-tag tag-english">英语</span>
+          <span class="title">environment</span>
+          <span class="streak-badge streak-0">❗重点</span>
+        </div>
+        <div class="review-item" onclick="startReview()">
+          <div class="checkbox" onclick="toggleCheck(event, this)"></div>
+          <span class="subject-tag tag-math">数学</span>
+          <span class="title">分数大小比较</span>
+          <span class="streak-badge streak-1">连续1次</span>
+        </div>
+        <div class="review-item" onclick="startReview()">
+          <div class="checkbox" onclick="toggleCheck(event, this)"></div>
+          <span class="subject-tag tag-math">数学</span>
+          <span class="title">通分方法</span>
+          <span class="streak-badge streak-2">连续2次 ✨</span>
+        </div>
+        <button class="btn-primary" onclick="startReview()">开始复习 ✏️</button>
+      </div>
+
+      <div class="exam-prep-card">
+        <h3>🎀 考前专项复习</h3>
+        <p>期末考试？选择学科和错因，生成专属练习题</p>
+        <button class="btn" onclick="showToast('🎯 考前专项功能开发中...')">🎯 开始专项复习</button>
+      </div>
+    </div>
+
+    <!-- ═══ 错题中心 ═══ -->
+    <div id="page-mistakes" class="page">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h2 style="font-size:22px;">📚 错题中心</h2>
+        <button class="btn-primary" style="margin:0;font-size:14px;padding:10px 20px;" onclick="showToast('📷 拍照上传功能开发中...')">📷 拍照上传</button>
+      </div>
+
+      <!-- 学期筛选 -->
+      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+        <select id="semesterFilter" style="padding:8px 16px;border-radius:20px;border:2px solid #FFB6C1;background:white;color:#4A4A4A;font-size:14px;cursor:pointer;">
+          <option>📅 四年级上学期（当前）</option>
+          <option>三年级下学期</option>
+          <option>三年级上学期</option>
+          <option>二年级下学期</option>
+          <option>── 全部学期 ──</option>
+        </select>
+        <select style="padding:8px 16px;border-radius:20px;border:2px solid #E6E6FA;background:white;color:#4A4A4A;font-size:14px;cursor:pointer;">
+          <option>全部错因</option><option>知识问题</option><option>能力不足</option><option>粗心习惯</option>
+        </select>
+        <div style="padding:8px 16px;border-radius:20px;background:#FFF0F5;font-size:13px;color:#FFB6C1;font-weight:500;">累计 3 年 · 共 86 道错题</div>
+      </div>
+
+      <!-- 学科概览：新录入/总数 -->
+      <div class="subject-overview">
+        <div class="subj-card active" onclick="showToast('已选择：数学')">
+          <div class="subj-icon">📐</div>
+          <div class="subj-name">数学</div>
+          <div class="subj-stats"><span class="new-count">5</span> / <span class="total-count">32</span></div>
+          <div style="font-size:11px;color:#999;">新录入 / 总数</div>
+        </div>
+        <div class="subj-card" onclick="showToast('已选择：英语')">
+          <div class="subj-icon">🔤</div>
+          <div class="subj-name">英语</div>
+          <div class="subj-stats"><span class="new-count">3</span> / <span class="total-count">24</span></div>
+          <div style="font-size:11px;color:#999;">新录入 / 总数</div>
+        </div>
+        <div class="subj-card" onclick="showToast('已选择：语文')">
+          <div class="subj-icon">📖</div>
+          <div class="subj-name">语文</div>
+          <div class="subj-stats"><span class="new-count">2</span> / <span class="total-count">15</span></div>
+          <div style="font-size:11px;color:#999;">新录入 / 总数</div>
+        </div>
+        <div class="subj-card" onclick="showToast('已选择：历史')">
+          <div class="subj-icon">🏛️</div>
+          <div class="subj-name">历史</div>
+          <div class="subj-stats"><span class="new-count">1</span> / <span class="total-count">10</span></div>
+          <div style="font-size:11px;color:#999;">新录入 / 总数</div>
+        </div>
+        <div class="subj-card" onclick="showToast('已选择：科学')">
+          <div class="subj-icon">🔬</div>
+          <div class="subj-name">科学</div>
+          <div class="subj-stats"><span class="new-count">0</span> / <span class="total-count">5</span></div>
+          <div style="font-size:11px;color:#999;">新录入 / 总数</div>
+        </div>
+      </div>
+
+      <!-- 错题列表：按时间倒序，新录入在最上面 -->
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>📚 数学错题（32 道）</span>
+          <span style="font-size:13px;color:#999;font-weight:400;">按时间倒序</span>
+        </div>
+        <div class="mistake-card" onclick="openMistakeDetail()">
+          <div class="mistake-thumb">📐</div>
+          <div class="mistake-info">
+            <h4>异分母分数加法</h4>
+            <div class="mistake-tags"><span class="mistake-tag tag-math">数学</span><span class="mistake-tag" style="background:#FFE0E0;color:#D32F2F;">知识问题</span><span class="mistake-tag" style="background:#FFF0F5;color:#FFB6C1;">新录入</span></div>
+            <div class="mistake-meta">2026-09-28 · 已审核 ✅</div>
+            <div class="mastery-bar"><div class="mastery-fill" style="width:25%;background:#FFB6C1;"></div></div>
+          </div>
+        </div>
+        <div class="mistake-card" onclick="openMistakeDetail()">
+          <div class="mistake-thumb">📐</div>
+          <div class="mistake-info">
+            <h4>分数混合运算</h4>
+            <div class="mistake-tags"><span class="mistake-tag tag-math">数学</span><span class="mistake-tag" style="background:#FFE0E0;color:#D32F2F;">知识问题</span><span class="mistake-tag" style="background:#FFF0F5;color:#FFB6C1;">新录入</span></div>
+            <div class="mistake-meta">2026-09-27 · 已审核 ✅</div>
+            <div class="mastery-bar"><div class="mastery-fill" style="width:35%;background:#FFB6C1;"></div></div>
+          </div>
+        </div>
+        <div class="mistake-card" onclick="openMistakeDetail()">
+          <div class="mistake-thumb">📐</div>
+          <div class="mistake-info">
+            <h4>通分方法</h4>
+            <div class="mistake-tags"><span class="mistake-tag tag-math">数学</span><span class="mistake-tag" style="background:#FFF8E0;color:#F9A825;">粗心</span></div>
+            <div class="mistake-meta">2026-09-25 · 已审核 ✅</div>
+            <div class="mastery-bar"><div class="mastery-fill" style="width:50%;background:#FFDAB9;"></div></div>
+          </div>
+        </div>
+        <div class="mistake-card" onclick="openMistakeDetail()">
+          <div class="mistake-thumb">📐</div>
+          <div class="mistake-info">
+            <h4>分数大小比较</h4>
+            <div class="mistake-tags"><span class="mistake-tag tag-math">数学</span><span class="mistake-tag" style="background:#FFF0E0;color:#E65100;">能力不足</span></div>
+            <div class="mistake-meta">2026-09-20 · 已审核 ✅</div>
+            <div class="mastery-bar"><div class="mastery-fill" style="width:65%;background:#E6E6FA;"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 复习中心 ═══ -->
+    <div id="page-review" class="page">
+      <h2 style="font-size:22px;margin-bottom:20px;">✏️ 复习中心</h2>
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-title">🌷 本周待复习（6 项）</div>
+            <div class="review-item" onclick="startReview()">
+              <div class="checkbox" onclick="toggleCheck(event, this)"></div>
+              <span class="subject-tag tag-math">数学</span>
+              <span class="title">异分母分数加法</span>
+              <span class="streak-badge streak-0">❗重点</span>
+            </div>
+            <div class="review-item" onclick="startReview()">
+              <div class="checkbox" onclick="toggleCheck(event, this)"></div>
+              <span class="subject-tag tag-english">英语</span>
+              <span class="title">although</span>
+              <span class="streak-badge streak-1">连续1次</span>
+            </div>
+            <div class="review-item" onclick="startReview()">
+              <div class="checkbox" onclick="toggleCheck(event, this)"></div>
+              <span class="subject-tag tag-history">历史</span>
+              <span class="title">辛亥革命意义</span>
+              <span class="streak-badge streak-2">连续2次 ✨</span>
+            </div>
+            <div class="review-item" onclick="startReview()">
+              <div class="checkbox" onclick="toggleCheck(event, this)"></div>
+              <span class="subject-tag tag-english">英语</span>
+              <span class="title">environment</span>
+              <span class="streak-badge streak-0">❗重点</span>
+            </div>
+            <div class="review-item" onclick="startReview()">
+              <div class="checkbox" onclick="toggleCheck(event, this)"></div>
+              <span class="subject-tag tag-math">数学</span>
+              <span class="title">分数大小比较</span>
+              <span class="streak-badge streak-1">连续1次</span>
+            </div>
+            <div class="review-item" onclick="startReview()">
+              <div class="checkbox" onclick="toggleCheck(event, this)"></div>
+              <span class="subject-tag tag-math">数学</span>
+              <span class="title">通分方法</span>
+              <span class="streak-badge streak-2">连续2次 ✨</span>
+            </div>
+            <button class="btn-primary" onclick="startReview()">开始复习 🌟</button>
+          </div>
+        </div>
+        <div>
+          <div class="exam-prep-card">
+            <h3>🎀 考前专项复习</h3>
+            <p>期末复习？选择学科和错因，生成专属练习题</p>
+            <button class="btn" onclick="showToast('🎯 考前专项功能开发中...')">🎯 开始专项复习</button>
+          </div>
+          <div class="card">
+            <div class="card-title">📊 复习统计</div>
+            <div class="stats-row">
+              <div class="mini-stat">
+                <div class="val">90%</div>
+                <div class="lbl">本周完成率</div>
+              </div>
+              <div class="mini-stat">
+                <div class="val" style="color:#FFDAB9;">2</div>
+                <div class="lbl">重点关注</div>
+              </div>
+              <div class="mini-stat">
+                <div class="val" style="color:#E6E6FA;">18</div>
+                <div class="lbl">已完成</div>
+              </div>
+            </div>
+            <div style="margin-top:16px;">
+              <div style="font-size:13px;color:#999;margin-bottom:4px;">本周进度 18/20</div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width:90%;background:linear-gradient(90deg,#FFB6C1,#E6E6FA);"></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">⚠️ 重点关注</div>
+            <div class="review-item" style="background:#FFF8F0;">
+              <span class="subject-tag tag-math">数学</span>
+              <span class="title">异分母分数加法</span>
+              <span class="streak-badge streak-0">❗重点</span>
+            </div>
+            <div class="review-item" style="background:#FFF8F0;">
+              <span class="subject-tag tag-english">英语</span>
+              <span class="title">environment</span>
+              <span class="streak-badge streak-0">❗重点</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 成长中心 ═══ -->
+    <div id="page-growth" class="page">
+      <div class="growth-header">
+        <div style="font-size:14px;color:#999;">当前等级</div>
+        <div class="level">Lv.5</div>
+        <div class="exp">320 / 500 EXP</div>
+        <div class="progress-bar" style="max-width:300px;margin:12px auto 0;">
+          <div class="progress-fill" style="width:64%;background:linear-gradient(90deg,#FFB6C1,#E6E6FA);"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🏅 勋章墙</div>
+        <div class="badge-grid">
+          <div class="badge-item"><div class="emoji">🌟</div><div class="name">初次学习</div></div>
+          <div class="badge-item"><div class="emoji">🔥</div><div class="name">连续7天</div></div>
+          <div class="badge-item"><div class="emoji">📚</div><div class="name">错题达人</div></div>
+          <div class="badge-item"><div class="emoji">🧠</div><div class="name">记忆之星</div></div>
+          <div class="badge-item"><div class="emoji">🌈</div><div class="name">全科进步</div></div>
+          <div class="badge-item locked"><div class="emoji">🏆</div><div class="name">学霸 Lv.10</div></div>
+          <div class="badge-item locked"><div class="emoji">💎</div><div class="name">完美复习</div></div>
+          <div class="badge-item locked"><div class="emoji">🎯</div><div class="name">百发百中</div></div>
+          <div class="badge-item locked"><div class="emoji">🚀</div><div class="name">冲刺达人</div></div>
+          <div class="badge-item locked"><div class="emoji">👑</div><div class="name">传奇学者</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">💌 最近表扬卡</div>
+        <div class="review-item" style="background:linear-gradient(135deg,#FFF0F5,#fff);">
+          <span style="font-size:24px;">🎉</span>
+          <span class="title"><strong>连续学习 7 天！</strong> 小美太棒了，坚持就是胜利！</span>
+          <span class="day-badge" style="background:#98FB98;color:#2E7D32;">今天</span>
+        </div>
+        <div class="review-item" style="background:linear-gradient(135deg,#FFF0F5,#fff);">
+          <span style="font-size:24px;">🌸</span>
+          <span class="title"><strong>数学掌握度提升！</strong> 分数加法已经攻克啦～</span>
+          <span class="day-badge" style="background:#FFB6C1;">昨天</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 我的 ═══ -->
+    <div id="page-profile" class="page">
+      <div class="profile-card">
+        <div class="profile-avatar">🌸</div>
+        <div class="profile-info">
+          <h3>小美</h3>
+          <p>四年级 · 已学习 45 天</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 学习概览</div>
+        <div class="stats-row">
+          <div class="mini-stat"><div class="val">86</div><div class="lbl">总错题</div></div>
+          <div class="mini-stat"><div class="val">152</div><div class="lbl">完成复习</div></div>
+          <div class="mini-stat"><div class="val">23</div><div class="lbl">背诵内容</div></div>
+        </div>
+      </div>
+
+      <div class="settings-list">
+        <div class="settings-item" onclick="switchStudent()">
+          <span>🔄 切换学生</span>
+          <span class="arrow">›</span>
+        </div>
+        <div class="settings-item" onclick="showToast('📊 成绩追踪功能开发中...')">
+          <span>📊 成绩追踪</span>
+          <span class="arrow">›</span>
+        </div>
+        <div class="settings-item" onclick="showToast('🗺️ 知识图谱功能开发中...')">
+          <span>🗺️ 知识图谱</span>
+          <span class="arrow">›</span>
+        </div>
+        <div class="settings-item" onclick="showToast('📱 PWA 设置功能开发中...')">
+          <span>📱 添加到主屏幕</span>
+          <span class="arrow">›</span>
+        </div>
+        <div class="settings-item">
+          <span>ℹ️ 关于</span>
+          <span class="arrow">›</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 知识图谱 ═══ -->
+    <div id="page-knowledge" class="page">
+      <h2 style="font-size:22px;margin-bottom:20px;">🗺️ 知识图谱</h2>
+      <div style="display:flex;gap:12px;margin-bottom:20px;">
+        <select style="padding:8px 16px;border-radius:20px;border:2px solid #FFB6C1;background:white;color:#4A4A4A;font-size:14px;"><option>数学</option><option>英语</option><option>语文</option><option>历史</option></select>
+        <select style="padding:8px 16px;border-radius:20px;border:2px solid #E6E6FA;background:white;color:#4A4A4A;font-size:14px;"><option>四年级上</option><option>三年级下</option></select>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">📐 分数与小数</div>
+          <div style="padding:8px 12px;border-radius:10px;background:#98FB98;margin:6px 0;display:flex;justify-content:space-between;"><span>分数的基本概念</span><span style="font-weight:700;">85</span></div>
+          <div style="padding:8px 12px;border-radius:10px;background:#98FB98;margin:6px 0;display:flex;justify-content:space-between;"><span>同分母分数加法</span><span style="font-weight:700;">90</span></div>
+          <div style="padding:8px 12px;border-radius:10px;background:#FFDAB9;margin:6px 0;display:flex;justify-content:space-between;"><span>异分母分数加法</span><span style="font-weight:700;">40</span></div>
+          <div style="padding:8px 12px;border-radius:10px;background:#FFE0E0;margin:6px 0;display:flex;justify-content:space-between;"><span>分数混合运算</span><span style="font-weight:700;">25</span></div>
+          <div style="padding:8px 12px;border-radius:10px;background:#FFDAB9;margin:6px 0;display:flex;justify-content:space-between;"><span>通分方法</span><span style="font-weight:700;">50</span></div>
+          <div style="padding:8px 12px;border-radius:10px;background:#E6E6FA;margin:6px 0;display:flex;justify-content:space-between;"><span>分数大小比较</span><span style="font-weight:700;">65</span></div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-title">📊 掌握度分布</div>
+            <div style="display:flex;gap:8px;align-items:flex-end;height:120px;padding:12px 0;">
+              <div style="flex:1;background:#FFE0E0;border-radius:8px 8px 0 0;height:30%;text-align:center;font-size:12px;padding-top:4px;">5</div>
+              <div style="flex:1;background:#FFDAB9;border-radius:8px 8px 0 0;height:45%;text-align:center;font-size:12px;padding-top:4px;">8</div>
+              <div style="flex:1;background:#E6E6FA;border-radius:8px 8px 0 0;height:65%;text-align:center;font-size:12px;padding-top:4px;">12</div>
+              <div style="flex:1;background:#98FB98;border-radius:8px 8px 0 0;height:90%;text-align:center;font-size:12px;padding-top:4px;">18</div>
+            </div>
+            <div style="display:flex;justify-content:space-around;font-size:11px;color:#999;"><span>薄弱</span><span>一般</span><span>良好</span><span>优秀</span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">❗ 薄弱知识点 TOP3</div>
+            <div class="review-item" style="background:#FFF0F0;"><span class="subject-tag tag-math">数学</span><span class="title">分数混合运算</span><span style="color:#D32F2F;font-weight:700;">25</span></div>
+            <div class="review-item" style="background:#FFF0F0;"><span class="subject-tag tag-math">数学</span><span class="title">异分母分数加法</span><span style="color:#D32F2F;font-weight:700;">40</span></div>
+            <div class="review-item" style="background:#FFF8F0;"><span class="subject-tag tag-math">数学</span><span class="title">通分方法</span><span style="color:#BF6B3A;font-weight:700;">50</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 训练中心 ═══ -->
+    <div id="page-training" class="page">
+      <h2 style="font-size:22px;margin-bottom:20px;">🎯 训练中心</h2>
+
+      <!-- 闭环机制说明 -->
+      <div class="card" style="background:linear-gradient(135deg,#F0FFF0,#FFF0F5);margin-bottom:20px;padding:16px 20px;">
+        <div style="font-size:14px;font-weight:600;margin-bottom:8px;">🔄 训练闭环机制</div>
+        <div style="font-size:13px;color:#666;line-height:1.8;">
+          同一知识点连续做对 <strong style="color:#FFB6C1;">3 次</strong> → 标记为「已掌握」→ 后续自动减少出题频率
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card" style="text-align:center;padding:32px;">
+          <div style="font-size:48px;margin-bottom:16px;">📝</div>
+          <h3 style="margin-bottom:8px;">薄弱点专练</h3>
+          <p style="color:#999;font-size:14px;margin-bottom:16px;">根据薄弱知识点自动出题</p>
+          <select style="padding:8px 16px;border-radius:20px;border:2px solid #FFB6C1;background:white;font-size:14px;margin-bottom:12px;display:block;width:100%;"><option>数学</option><option>英语</option></select>
+          <button class="btn-primary" style="width:100%;" onclick="showToast('🎯 正在生成题目...')">开始练习</button>
+        </div>
+        <div class="card" style="text-align:center;padding:32px;">
+          <div style="font-size:48px;margin-bottom:16px;">🎲</div>
+          <h3 style="margin-bottom:8px;">每日混合练</h3>
+          <p style="color:#999;font-size:14px;margin-bottom:16px;">各学科混合练习</p>
+          <select style="padding:8px 16px;border-radius:20px;border:2px solid #E6E6FA;background:white;font-size:14px;margin-bottom:12px;display:block;width:100%;"><option>5 题</option><option>10 题</option></select>
+          <button class="btn-primary" style="width:100%;background:linear-gradient(135deg,#E6E6FA,#98FB98);" onclick="showToast('🎲 正在生成混合题...')">开始练习</button>
+        </div>
+      </div>
+
+      <!-- 知识点训练进度（闭环可视化） -->
+      <div class="card" style="margin-top:20px;">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>🔄 知识点训练进度（闭环）</span>
+          <span style="font-size:12px;color:#999;">连续 3 次正确 → 已掌握</span>
+        </div>
+        <div class="review-item" style="background:#FFF0F0;">
+          <span class="subject-tag tag-math">数学</span>
+          <span class="title">分数混合运算</span>
+          <span style="font-size:12px;color:#D32F2F;">streak: 0/3</span>
+          <div style="width:60px;height:6px;background:#F0E6EF;border-radius:3px;margin-left:8px;"><div style="width:0%;height:100%;background:#FFB6C1;border-radius:3px;"></div></div>
+        </div>
+        <div class="review-item" style="background:#FFF8F0;">
+          <span class="subject-tag tag-math">数学</span>
+          <span class="title">异分母分数加法</span>
+          <span style="font-size:12px;color:#BF6B3A;">streak: 1/3</span>
+          <div style="width:60px;height:6px;background:#F0E6EF;border-radius:3px;margin-left:8px;"><div style="width:33%;height:100%;background:#FFDAB9;border-radius:3px;"></div></div>
+        </div>
+        <div class="review-item" style="background:#FFF8F0;">
+          <span class="subject-tag tag-math">数学</span>
+          <span class="title">通分方法</span>
+          <span style="font-size:12px;color:#BF6B3A;">streak: 2/3</span>
+          <div style="width:60px;height:6px;background:#F0E6EF;border-radius:3px;margin-left:8px;"><div style="width:66%;height:100%;background:#FFDAB9;border-radius:3px;"></div></div>
+        </div>
+        <div class="review-item" style="background:#F0FFF0;">
+          <span class="subject-tag tag-math">数学</span>
+          <span class="title">分数大小比较</span>
+          <span style="font-size:12px;color:#2E7D32;font-weight:600;">✅ 已掌握</span>
+          <div style="width:60px;height:6px;background:#E8F5E9;border-radius:3px;margin-left:8px;"><div style="width:100%;height:100%;background:#98FB98;border-radius:3px;"></div></div>
+        </div>
+        <div class="review-item" style="background:#F0FFF0;">
+          <span class="subject-tag tag-english">英语</span>
+          <span class="title">although 用法</span>
+          <span style="font-size:12px;color:#2E7D32;font-weight:600;">✅ 已掌握</span>
+          <div style="width:60px;height:6px;background:#E8F5E9;border-radius:3px;margin-left:8px;"><div style="width:100%;height:100%;background:#98FB98;border-radius:3px;"></div></div>
+        </div>
+        <div class="review-item">
+          <span class="subject-tag tag-english">英语</span>
+          <span class="title">environment</span>
+          <span style="font-size:12px;color:#D32F2F;">streak: 0/3</span>
+          <div style="width:60px;height:6px;background:#F0E6EF;border-radius:3px;margin-left:8px;"><div style="width:0%;height:100%;background:#E6E6FA;border-radius:3px;"></div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px;">
+        <div class="card-title">📄 最近练习记录</div>
+        <div class="review-item"><span class="subject-tag tag-math">数学</span><span class="title">分数加法专练</span><span style="color:#2E7D32;font-weight:600;">4/5 ✅</span></div>
+        <div class="review-item"><span class="subject-tag tag-english">英语</span><span class="title">单词拼写混合</span><span style="color:#BF6B3A;font-weight:600;">6/10</span></div>
+        <div class="review-item"><span class="subject-tag tag-math">数学</span><span class="title">通分方法专练</span><span style="color:#2E7D32;font-weight:600;">5/5 ✅</span></div>
+      </div>
+    </div>
+
+    <!-- ═══ 成绩追踪 ═══ -->
+    <div id="page-scores" class="page">
+      <h2 style="font-size:22px;margin-bottom:20px;">📊 成绩追踪</h2>
+      <div style="display:flex;gap:12px;margin-bottom:20px;">
+        <button class="btn-primary" style="margin:0;font-size:14px;padding:10px 20px;" onclick="showToast('📝 录入成绩功能开发中...')">➕ 录入考试成绩</button>
+        <select style="padding:8px 16px;border-radius:20px;border:2px solid #E6E6FA;background:white;font-size:14px;"><option>本学期</option><option>上学期</option></select>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">📉 数学成绩趋势</div>
+          <div style="display:flex;gap:8px;align-items:flex-end;height:100px;padding:8px 0;">
+            <div style="flex:1;text-align:center;"><div style="background:#FFB6C1;border-radius:6px;height:60px;margin-bottom:4px;"></div><div style="font-size:11px;color:#999;">期中</div><div style="font-size:13px;font-weight:600;">78</div></div>
+            <div style="flex:1;text-align:center;"><div style="background:#FFB6C1;border-radius:6px;height:70px;margin-bottom:4px;"></div><div style="font-size:11px;color:#999;">月考</div><div style="font-size:13px;font-weight:600;">82</div></div>
+            <div style="flex:1;text-align:center;"><div style="background:#98FB98;border-radius:6px;height:85px;margin-bottom:4px;"></div><div style="font-size:11px;color:#999;">期末</div><div style="font-size:13px;font-weight:600;">91</div></div>
+          </div>
+          <div style="text-align:center;margin-top:12px;padding:8px;background:#F0FFF0;border-radius:8px;color:#2E7D32;font-size:14px;">📈 上升趋势 +13分</div>
+        </div>
+        <div class="card">
+          <div class="card-title">📉 英语成绩趋势</div>
+          <div style="display:flex;gap:8px;align-items:flex-end;height:100px;padding:8px 0;">
+            <div style="flex:1;text-align:center;"><div style="background:#E6E6FA;border-radius:6px;height:75px;margin-bottom:4px;"></div><div style="font-size:11px;color:#999;">期中</div><div style="font-size:13px;font-weight:600;">85</div></div>
+            <div style="flex:1;text-align:center;"><div style="background:#E6E6FA;border-radius:6px;height:70px;margin-bottom:4px;"></div><div style="font-size:11px;color:#999;">月考</div><div style="font-size:13px;font-weight:600;">83</div></div>
+            <div style="flex:1;text-align:center;"><div style="background:#E6E6FA;border-radius:6px;height:80px;margin-bottom:4px;"></div><div style="font-size:11px;color:#999;">期末</div><div style="font-size:13px;font-weight:600;">88</div></div>
+          </div>
+          <div style="text-align:center;margin-top:12px;padding:8px;background:#F5F0FF;border-radius:8px;color:#7B68AE;font-size:14px;">📊 平稳略升 +3分</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🏆 工具有效性评估</div>
+        <div class="stats-row">
+          <div class="mini-stat"><div class="val" style="color:#2E7D32;">78%</div><div class="lbl">错题攻克率</div></div>
+          <div class="mini-stat"><div class="val" style="color:#2E7D32;">85%</div><div class="lbl">复习有效率</div></div>
+          <div class="mini-stat"><div class="val" style="color:#BF6B3A;">62%</div><div class="lbl">训练有效率</div></div>
+        </div>
+        <div style="text-align:center;margin-top:16px;padding:12px;background:linear-gradient(135deg,#F0FFF0,#FFF0F5);border-radius:12px;font-size:16px;font-weight:600;">综合评级：✨ 效果显著</div>
+      </div>
+    </div>
+
+    <!-- ═══ 表扬卡 ═══ -->
+    <div id="page-praise" class="page">
+      <h2 style="font-size:22px;margin-bottom:20px;">💌 表扬卡</h2>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
+        <div class="card" style="background:linear-gradient(135deg,#FFF0F5,#fff);border-left:4px solid #FFB6C1;"><div style="font-size:36px;margin-bottom:8px;">🎉</div><h4>连续学习 7 天！</h4><p style="color:#999;font-size:13px;margin:8px 0;">小美太棒了，坚持就是胜利！</p><div style="font-size:12px;color:#ccc;">2026-09-28</div></div>
+        <div class="card" style="background:linear-gradient(135deg,#F0F0FF,#fff);border-left:4px solid #E6E6FA;"><div style="font-size:36px;margin-bottom:8px;">🌸</div><h4>数学掌握度提升！</h4><p style="color:#999;font-size:13px;margin:8px 0;">分数加法已经攻克啦～</p><div style="font-size:12px;color:#ccc;">2026-09-27</div></div>
+        <div class="card" style="background:linear-gradient(135deg,#F0FFF0,#fff);border-left:4px solid #98FB98;"><div style="font-size:36px;margin-bottom:8px;">📚</div><h4>读完 3 本书！</h4><p style="color:#999;font-size:13px;margin:8px 0;">阅读小达人，继续加油！</p><div style="font-size:12px;color:#ccc;">2026-09-25</div></div>
+        <div class="card" style="background:linear-gradient(135deg,#FFF8F0,#fff);border-left:4px solid #FFDAB9;"><div style="font-size:36px;margin-bottom:8px;">📈</div><h4>数学进步 13 分！</h4><p style="color:#999;font-size:13px;margin:8px 0;">从 78 到 91，巨大的飞跃！</p><div style="font-size:12px;color:#ccc;">2026-09-20</div></div>
+      </div>
+    </div>
+
+    <!-- ═══ 学习画像 ═══ -->
+    <div id="page-portrait" class="page">
+      <h2 style="font-size:22px;margin-bottom:20px;">🧩 学习画像</h2>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">📐 数学能力雷达</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:60px;font-size:13px;">计算</span><div style="flex:1;height:8px;background:#F0E6EF;border-radius:4px;"><div style="width:85%;height:100%;background:#FFB6C1;border-radius:4px;"></div></div><span style="font-size:13px;font-weight:600;">85</span></div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:60px;font-size:13px;">应用题</span><div style="flex:1;height:8px;background:#F0E6EF;border-radius:4px;"><div style="width:60%;height:100%;background:#FFDAB9;border-radius:4px;"></div></div><span style="font-size:13px;font-weight:600;">60</span></div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:60px;font-size:13px;">几何</span><div style="flex:1;height:8px;background:#F0E6EF;border-radius:4px;"><div style="width:72%;height:100%;background:#E6E6FA;border-radius:4px;"></div></div><span style="font-size:13px;font-weight:600;">72</span></div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:60px;font-size:13px;">单位换算</span><div style="flex:1;height:8px;background:#F0E6EF;border-radius:4px;"><div style="width:90%;height:100%;background:#98FB98;border-radius:4px;"></div></div><span style="font-size:13px;font-weight:600;">90</span></div>
+            <div style="display:flex;align-items:center;gap:8px;"><span style="width:60px;font-size:13px;">统计</span><div style="flex:1;height:8px;background:#F0E6EF;border-radius:4px;"><div style="width:78%;height:100%;background:#E6E6FA;border-radius:4px;"></div></div><span style="font-size:13px;font-weight:600;">78</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">📊 学习行为统计</div>
+          <div class="stats-row">
+            <div class="mini-stat"><div class="val">86</div><div class="lbl">总错题数</div></div>
+            <div class="mini-stat"><div class="val">152</div><div class="lbl">完成复习</div></div>
+            <div class="mini-stat"><div class="val">23</div><div class="lbl">已毕业</div></div>
+          </div>
+          <div style="margin-top:16px;padding:12px;background:#FFF8FA;border-radius:12px;">
+            <div style="font-size:14px;font-weight:600;margin-bottom:8px;">🤖 AI 学习建议</div>
+            <p style="font-size:13px;color:#666;line-height:1.6;">小美的计算能力很强，但应用题转化能力需要加强。建议本周重点练习分数应用题。</p>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📉 成绩趋势对比</div>
+        <div style="display:flex;gap:16px;">
+          <div style="flex:1;text-align:center;padding:16px;background:#FFF0F5;border-radius:12px;"><div style="font-size:13px;color:#999;">数学</div><div style="font-size:24px;font-weight:700;color:#2E7D32;">91 ↑</div></div>
+          <div style="flex:1;text-align:center;padding:16px;background:#F0F0FF;border-radius:12px;"><div style="font-size:13px;color:#999;">英语</div><div style="font-size:24px;font-weight:700;color:#7B68AE;">88 →</div></div>
+          <div style="flex:1;text-align:center;padding:16px;background:#FFF8F0;border-radius:12px;"><div style="font-size:13px;color:#999;">语文</div><div style="font-size:24px;font-weight:700;color:#BF6B3A;">85 ↓</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 语文中心 ═══ -->
+    <div id="page-chinese" class="page">
+      <h2 style="font-size:22px;margin-bottom:20px;">📖 语文中心</h2>
+      <div class="two-col">
+        <div class="card"><div class="card-title">📝 作文练习</div><div class="review-item"><span class="subject-tag tag-chinese">作文</span><span class="title">《我的暑假》</span><span style="color:#2E7D32;font-size:13px;">已批改</span></div><div class="review-item"><span class="subject-tag tag-chinese">作文</span><span class="title">《秋天的树叶》</span><span style="color:#BF6B3A;font-size:13px;">待批改</span></div><button class="btn-outline" onclick="showToast('📝 新建作文功能开发中...')">➕ 新建作文</button></div>
+        <div class="card"><div class="card-title">📕 阅读理解</div><div class="review-item"><span class="subject-tag tag-chinese">阅读</span><span class="title">《小英雄雨来》练习</span><span style="color:#2E7D32;font-size:13px;">4/5 ✅</span></div><div class="review-item"><span class="subject-tag tag-chinese">阅读</span><span class="title">古诗鉴赏：《静夜思》</span><span style="color:#2E7D32;font-size:13px;">3/3 ✅</span></div><button class="btn-outline" onclick="showToast('📕 新建练习功能开发中...')">➕ 新建练习</button></div>
+      </div>
+      <div class="card"><div class="card-title">🏯 古诗文背诵</div><div class="review-item"><span class="subject-tag tag-chinese">古诗</span><span class="title">《望庐山瀑布》</span><span class="streak-badge streak-3">已毕业 ✅</span></div><div class="review-item"><span class="subject-tag tag-chinese">古诗</span><span class="title">《静夜思》</span><span class="streak-badge streak-2">连续2次</span></div><div class="review-item"><span class="subject-tag tag-chinese">古文</span><span class="title">《论语三则》</span><span class="streak-badge streak-1">连续1次</span></div></div>
+    </div>
+
+    <!-- ═══ 英语能力树 ═══ -->
+    <div id="page-english" class="page">
+      <h2 style="font-size:22px;margin-bottom:20px;">🔤 英语能力树</h2>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+        <div class="card" style="text-align:center;"><div style="font-size:40px;margin-bottom:8px;">📝</div><h4>语法练习</h4><div style="margin:12px 0;"><span style="font-size:24px;font-weight:700;color:#C8A2C8;">18</span><span style="font-size:13px;color:#999;"> 次</span></div><div class="progress-bar"><div class="progress-fill" style="width:72%;background:#E6E6FA;"></div></div><div style="font-size:12px;color:#999;margin-top:4px;">掌握度 72%</div></div>
+        <div class="card" style="text-align:center;"><div style="font-size:40px;margin-bottom:8px;">📖</div><h4>阅读理解</h4><div style="margin:12px 0;"><span style="font-size:24px;font-weight:700;color:#C8A2C8;">12</span><span style="font-size:13px;color:#999;"> 次</span></div><div class="progress-bar"><div class="progress-fill" style="width:65%;background:#E6E6FA;"></div></div><div style="font-size:12px;color:#999;margin-top:4px;">掌握度 65%</div></div>
+        <div class="card" style="text-align:center;"><div style="font-size:40px;margin-bottom:8px;">✍️</div><h4>写作练习</h4><div style="margin:12px 0;"><span style="font-size:24px;font-weight:700;color:#C8A2C8;">8</span><span style="font-size:13px;color:#999;"> 次</span></div><div class="progress-bar"><div class="progress-fill" style="width:55%;background:#FFDAB9;"></div></div><div style="font-size:12px;color:#999;margin-top:4px;">掌握度 55%</div></div>
+      </div>
+      <div class="card"><div class="card-title">📚 单词本</div><div class="review-item"><span class="subject-tag tag-english">单词</span><span class="title">四年级上册 Unit1~3</span><span style="font-size:13px;color:#2E7D32;">已学 45/60</span></div><div class="review-item"><span class="subject-tag tag-english">单词</span><span class="title">四年级上册 Unit4~6</span><span style="font-size:13px;color:#BF6B3A;">已学 12/55</span></div></div>
+    </div>
+
+    <!-- ═══ 阅读中心 ═══ -->
+    <div id="page-reading" class="page">
+      <h2 style="font-size:22px;margin-bottom:20px;">📕 阅读中心</h2>
+      <div class="two-col">
+        <div class="card"><div class="card-title">📚 正在读</div><div class="review-item"><span style="font-size:24px;">📗</span><span class="title">《窗边的小豆豆》</span><span style="font-size:13px;color:#999;">120/240页</span></div><div style="margin:0 16px;"><div class="progress-bar"><div class="progress-fill" style="width:50%;background:#98FB98;"></div></div></div><div class="review-item"><span style="font-size:24px;">📘</span><span class="title">《小王子》</span><span style="font-size:13px;color:#999;">45/96页</span></div><div style="margin:0 16px;"><div class="progress-bar"><div class="progress-fill" style="width:47%;background:#E6E6FA;"></div></div></div></div>
+        <div class="card"><div class="card-title">✅ 已读完</div><div class="review-item"><span style="font-size:24px;">📙</span><span class="title">《夏洛的网》</span><span style="font-size:13px;color:#2E7D32;">已完成 ✅</span></div><div class="review-item"><span style="font-size:24px;">📕</span><span class="title">《草房子》</span><span style="font-size:13px;color:#2E7D32;">已完成 ✅</span></div><div class="review-item"><span style="font-size:24px;">📗</span><span class="title">《青铜葵花》</span><span style="font-size:13px;color:#2E7D32;">已完成 ✅</span></div></div>
+      </div>
+      <div class="card"><div class="card-title">✍️ 最近感想</div><div class="review-item" style="background:#FFF8FA;"><span style="font-size:20px;">💭</span><span class="title" style="font-style:italic;">“小豆豆虽然很调皮，但她有一颗善良的心...”</span><span style="font-size:12px;color:#999;">09-28</span></div></div>
+    </div>
+
+    <!-- ═══ 审核中心 ═══ -->
+    <div id="page-approval" class="page">
+      <h2 style="font-size:22px;margin-bottom:20px;">✅ 审核中心</h2>
+      <div class="card"><div class="card-title">⏳ 待审核（2 项）</div>
+        <div class="card" style="border:2px solid #FFDAB9;background:#FFFDF5;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span class="subject-tag tag-math">数学</span><span style="font-size:12px;color:#999;">2026-09-28</span></div>
+          <p style="font-size:14px;margin-bottom:8px;">AI 分析：错因为「知识问题」，关联知识点「异分母分数加法」</p>
+          <div style="display:flex;gap:8px;"><button class="btn-primary" style="margin:0;padding:8px 16px;font-size:13px;" onclick="showToast('✅ 已通过审核')">✅ 通过</button><button class="btn-outline" style="padding:8px 16px;font-size:13px;">✏️ 修改</button><button style="padding:8px 16px;border-radius:12px;border:2px solid #ddd;background:white;font-size:13px;cursor:pointer;" onclick="showToast('❌ 已驳回')">❌ 驳回</button></div>
+        </div>
+        <div class="card" style="border:2px solid #FFDAB9;background:#FFFDF5;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span class="subject-tag tag-english">英语</span><span style="font-size:12px;color:#999;">2026-09-27</span></div>
+          <p style="font-size:14px;margin-bottom:8px;">AI 出题：生成了 5 道关于 although 用法的练习题</p>
+          <div style="display:flex;gap:8px;"><button class="btn-primary" style="margin:0;padding:8px 16px;font-size:13px;" onclick="showToast('✅ 已通过审核')">✅ 通过</button><button class="btn-outline" style="padding:8px 16px;font-size:13px;">✏️ 修改</button><button style="padding:8px 16px;border-radius:12px;border:2px solid #ddd;background:white;font-size:13px;cursor:pointer;" onclick="showToast('❌ 已驳回')">❌ 驳回</button></div>
+        </div>
+      </div>
+      <div class="card"><div class="card-title">✅ 已审核（15 项）</div><div class="review-item"><span class="subject-tag tag-math">数学</span><span class="title">分数大小比较 - 错题分析</span><span style="color:#2E7D32;font-size:13px;">已通过</span></div><div class="review-item"><span class="subject-tag tag-history">历史</span><span class="title">辛亥革命意义 - 背诵卡片</span><span style="color:#2E7D32;font-size:13px;">已通过</span></div></div>
+    </div>
+
+    <!-- ═══ 设置 ═══ -->
+    <div id="page-settings" class="page">
+      <h2 style="font-size:22px;margin-bottom:20px;">⚙️ 设置</h2>
+      <div class="card"><div class="card-title">👧 学生管理</div><div class="settings-item" style="border-bottom:1px solid #FFF0F5;"><div><div style="font-weight:600;">小美</div><div style="font-size:13px;color:#999;">四年级 · 小学</div></div><span class="arrow">›</span></div><div class="settings-item"><div><div style="font-weight:600;">小乐</div><div style="font-size:13px;color:#999;">初一 · 初中</div></div><span class="arrow">›</span></div></div>
+      <div class="card"><div class="card-title">📅 复习设置</div><div class="settings-item" style="border-bottom:1px solid #FFF0F5;"><span>每周复习日</span><span style="color:#FFB6C1;font-weight:600;">周六</span></div><div class="settings-item" style="border-bottom:1px solid #FFF0F5;"><span>毕业条件</span><span style="color:#999;">连续 3 次 PASS</span></div><div class="settings-item"><span>复习提醒</span><span style="color:#999;">已开启</span></div></div>
+      <div class="card"><div class="card-title">🔗 服务配置</div><div class="settings-item" style="border-bottom:1px solid #FFF0F5;"><span>AI 服务</span><span style="color:#2E7D32;">DeepSeek ✅</span></div><div class="settings-item" style="border-bottom:1px solid #FFF0F5;"><span>OCR 服务</span><span style="color:#2E7D32;">百度 OCR ✅</span></div><div class="settings-item"><span>数据库</span><span style="color:#2E7D32;">Supabase ✅</span></div></div>
+      <div class="card"><div class="card-title">📱 PWA 设置</div><div class="settings-item"><span>添加到主屏幕</span><button class="btn-outline" style="padding:6px 14px;font-size:12px;margin:0;">安装</button></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 复习卡片弹窗 -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="review-modal">
+    <div class="subject" id="modalSubject">📐 数学</div>
+    <div class="round" id="modalStreak">pass_streak: 0 · 重点关注</div>
+    <div class="question" id="modalQuestion">请回忆：异分母分数加法的计算步骤是什么？</div>
+    <div class="review-btns">
+      <button class="btn-pass" onclick="reviewAnswer('PASS')">✅ 记住了</button>
+      <button class="btn-partial" onclick="reviewAnswer('PARTIAL')">🤔 部分记住</button>
+      <button class="btn-fail" onclick="reviewAnswer('FAIL')">❌ 忘了</button>
+    </div>
+  </div>
+</div>
+
+<!-- 错题详情弹窗 -->
+<div class="modal-overlay" id="mistakeDetailModal" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="detail-modal">
+    <div class="detail-header">
+      <div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <span class="mistake-tag tag-math">数学</span>
+          <span class="mistake-tag" style="background:#FFE0E0;color:#D32F2F;">知识问题</span>
+          <span class="mistake-tag" style="background:#FFF0F5;color:#FFB6C1;">四年级上学期</span>
+        </div>
+        <h3 style="font-size:18px;margin:0;">异分母分数加法</h3>
+      </div>
+      <button class="close-btn" onclick="document.getElementById('mistakeDetailModal').classList.remove('show')">&times;</button>
+    </div>
+    <div class="detail-body">
+      <!-- 知识点分析 -->
+      <div class="detail-section">
+        <h4>📚 知识点分析</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <span class="kp-chip" style="background:#FFF0F5;color:#FFB6C1;" onclick="showToast('跳转到：分数运算')">分数运算</span>
+          <span class="kp-chip" style="background:#FFF0E0;color:#E65100;" onclick="showToast('跳转到：通分方法')">通分方法</span>
+          <span class="kp-chip" style="background:#E8F5E9;color:#4CAF50;" onclick="showToast('跳转到：最小公倍数')">最小公倍数</span>
+        </div>
+      </div>
+
+      <!-- 难点分析 -->
+      <div class="detail-section">
+        <h4>🎯 难点分析</h4>
+        <div style="padding:14px;border-radius:12px;background:#FFF8FA;font-size:14px;line-height:1.8;color:#4A4A4A;">
+          <strong>核心难点：</strong>异分母分数加法需要先通分，再按照同分母分数的加减法则进行计算。<br>
+          <strong>易错点：</strong>很多孩子会忘记通分，直接把分子加分子、分母加分母。<br>
+          <strong>突破方法：</strong>先找最小公分母 → 化为同分母 → 再计算分子。
+        </div>
+      </div>
+
+      <!-- 容易混淆的点 -->
+      <div class="detail-section">
+        <h4>⚠️ 容易混淆的点</h4>
+        <div style="padding:14px;border-radius:12px;background:#FFF8E0;font-size:14px;line-height:1.8;color:#4A4A4A;">
+          <strong>混淆点 1：</strong>分数加法 vs 分数乘法<br>
+          分数加法需要通分，而分数乘法不需要通分，直接分子乘分子、分母乘分母。<br><br>
+          <strong>混淆点 2：</strong>通分时用最小公倍数还是最小公分母？<br>
+          两者本质相同，最小公分母就是各分母的最小公倍数。
+        </div>
+      </div>
+
+      <!-- 类似错题（来自知识库） -->
+      <div class="detail-section">
+        <h4>🔗 相关错题（知识库）</h4>
+        <div class="related-card" onclick="showToast('查看：分数混合运算')">
+          <span style="font-size:20px;">📐</span>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:500;">分数混合运算</div>
+            <div style="font-size:12px;color:#999;">2026-09-27 · 知识问题 · 同属“分数运算”</div>
+          </div>
+          <span style="color:#FFB6C1;">→</span>
+        </div>
+        <div class="related-card" onclick="showToast('查看：通分方法')">
+          <span style="font-size:20px;">📐</span>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:500;">通分方法</div>
+            <div style="font-size:12px;color:#999;">2026-09-25 · 粗心 · 同属“通分方法”</div>
+          </div>
+          <span style="color:#FFB6C1;">→</span>
+        </div>
+        <div class="related-card" onclick="showToast('查看：分数大小比较')">
+          <span style="font-size:20px;">📐</span>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:500;">分数大小比较</div>
+            <div style="font-size:12px;color:#999;">2026-09-20 · 能力不足 · 同属“分数运算”</div>
+          </div>
+          <span style="color:#FFB6C1;">→</span>
+        </div>
+      </div>
+
+      <!-- 掌握度 -->
+      <div class="detail-section" style="text-align:center;">
+        <div style="font-size:13px;color:#999;margin-bottom:8px;">掌握度</div>
+        <div class="mastery-bar" style="height:10px;"><div class="mastery-fill" style="width:25%;background:#FFB6C1;height:10px;"></div></div>
+        <div style="font-size:12px;color:#FFB6C1;margin-top:6px;">25% · 需要持续复习</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 通知 -->
+<div class="toast" id="toast"></div>
+
+<!-- 底部导航（手机端） -->
+<div class="bottom-nav">
+  <div class="nav-item active" onclick="showPage('home', this)" style="flex-direction:column;font-size:11px;gap:2px;">
+    <span>🏠</span><span>首页</span>
+  </div>
+  <div class="nav-item" onclick="showPage('mistakes', this)" style="flex-direction:column;font-size:11px;gap:2px;">
+    <span>📚</span><span>错题</span>
+  </div>
+  <div class="nav-item" onclick="showPage('review', this)" style="flex-direction:column;font-size:11px;gap:2px;">
+    <span>✏️</span><span>复习</span>
+  </div>
+  <div class="nav-item" onclick="showPage('growth', this)" style="flex-direction:column;font-size:11px;gap:2px;">
+    <span>🌟</span><span>成长</span>
+  </div>
+  <div class="nav-item" onclick="showPage('profile', this)" style="flex-direction:column;font-size:11px;gap:2px;">
+    <span>👤</span><span>我的</span>
+  </div>
+</div>
+
+<script>
+  // 学生切换
+  const students = [
+    { name: '小美', grade: '四年级', avatar: '🌸' },
+    { name: '小乐', grade: '初一', avatar: '🌈' }
+  ];
+  let currentStudent = 0;
+
+  function switchStudent() {
+    currentStudent = (currentStudent + 1) % 2;
+    const s = students[currentStudent];
+    document.getElementById('greeting').innerHTML = `下午好，${s.name} <span>· ${s.grade}</span>`;
+    document.querySelector('.avatar').textContent = s.avatar;
+    document.querySelector('.profile-avatar').textContent = s.avatar;
+    document.querySelector('.profile-info h3').textContent = s.name;
+    document.querySelector('.profile-info p').textContent = `${s.grade} · 已学习 32 天`;
+    showToast(`🔄 已切换到：${s.name}（${s.grade}）`);
+  }
+
+  // 页面切换
+  function showPage(pageId, navEl) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + pageId).classList.add('active');
+
+    document.querySelectorAll('.sidebar .nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
+
+    if (navEl) navEl.classList.add('active');
+    // Sync sidebar and bottom nav
+    const idx = ['home','mistakes','review','growth','profile','knowledge','training','scores','praise','portrait','chinese','english','reading','approval','settings'].indexOf(pageId);
+    const sideItems = document.querySelectorAll('.sidebar .nav-item');
+    const bottomItems = document.querySelectorAll('.bottom-nav .nav-item');
+    if (sideItems[idx]) sideItems[idx].classList.add('active');
+    if (bottomItems[idx]) bottomItems[idx].classList.add('active');
+  }
+
+  // 复习弹窗
+  const reviewItems = [
+    { subject: '📐 数学', streak: 'pass_streak: 0 · 重点关注', question: '请回忆：异分母分数加法的计算步骤是什么？' },
+    { subject: '🔤 英语', streak: 'pass_streak: 1 · 继续加油', question: 'although 是什么意思？请用一个例句说明用法。' },
+    { subject: '📖 历史', streak: 'pass_streak: 2 · 即将毕业 ✨', question: '辛亥革命发生在哪一年？它的主要意义是什么？' },
+    { subject: '🔤 英语', streak: 'pass_streak: 0 · 重点关注', question: 'environment 的中文意思是什么？请拼写并造句。' },
+    { subject: '📐 数学', streak: 'pass_streak: 1 · 继续加油', question: '如何比较两个分数的大小？请说出两种方法。' },
+    { subject: '📐 数学', streak: 'pass_streak: 2 · 即将毕业 ✨', question: '通分的关键步骤是什么？最小公分母怎么求？' },
+  ];
+  let reviewIdx = 0;
+
+  function startReview() {
+    reviewIdx = 0;
+    showReviewCard();
+  }
+
+  function showReviewCard() {
+    if (reviewIdx >= reviewItems.length) {
+      document.getElementById('reviewModal').classList.remove('show');
+      showToast('🎉 本轮复习完成！太棒了～');
+      return;
+    }
+    const item = reviewItems[reviewIdx];
+    document.getElementById('modalSubject').textContent = item.subject;
+    document.getElementById('modalStreak').textContent = item.streak;
+    document.getElementById('modalQuestion').textContent = item.question;
+    document.getElementById('reviewModal').classList.add('show');
+  }
+
+  function reviewAnswer(result) {
+    const msgs = { PASS: '✅ 太棒了！pass_streak +1', PARTIAL: '🤔 部分记住，pass_streak 不变', FAIL: '❗ 没关系，pass_streak 重置为 0' };
+    document.getElementById('reviewModal').classList.remove('show');
+    showToast(msgs[result]);
+    reviewIdx++;
+    setTimeout(showReviewCard, 600);
+  }
+
+  // 复选框
+  function toggleCheck(e, el) {
+    e.stopPropagation();
+    el.classList.toggle('checked');
+  }
+
+  // 通知
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+  }
+
+  // 点击弹窗外部关闭
+  document.getElementById('reviewModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('show');
+  });
+  document.getElementById('mistakeDetailModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('show');
+  });
+
+  // 错题详情弹窗
+  function openMistakeDetail() {
+    document.getElementById('mistakeDetailModal').classList.add('show');
+  }
+</script>
+
+</body>
+</html>

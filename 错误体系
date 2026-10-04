@@ -1,0 +1,386 @@
+一、设计目标
+
+错因体系的目的不是记录错误，而是回答：
+
+为什么会错
+为什么会反复错
+应该如何改进
+是否真正掌握
+
+因此错因体系将作为以下模块的基础数据模型：
+
+AI分析
+人工审核
+知识图谱
+成长报告
+学习画像
+复习系统
+AI出题
+二、核心设计原则
+原则1：AI负责发现问题
+
+AI负责：
+
+知识点识别
+错误类别推荐
+错误原因推荐
+置信度评估
+
+AI结果仅作为建议。
+
+原则2：人工负责确认问题
+
+家长或老师负责：
+
+确认知识点
+确认错误类别
+确认错误原因
+上传订正答案
+
+最终结果具有最高优先级。
+
+原则3：系统负责记录成长
+
+系统关注成长过程，而不是错误次数。
+
+原则4：统计以最终确认为准
+
+不使用 AI Category、AI Reason 进行统计。
+
+统一使用：
+
+Final Category
+Final Reason
+
+进行分析。
+三、错因模型
+
+采用三维模型：
+
+Knowledge Point + Error Category + Error Reason
+
+这是系统最核心的数据结构。
+
+示例：
+
+知识点：分数应用题
+
+错误类别：ABILITY
+
+错误原因：QUESTION_MISUNDERSTOOD（审题错误）
+
+四、错误类别（Category）
+KNOWLEDGE（知识问题）
+
+定义：
+
+不会
+记错
+遗忘
+理解错误
+
+判断标准：
+
+孩子尚未真正掌握知识点。
+
+ABILITY（能力问题）
+
+定义：
+
+知识会
+题不会做
+不会分析
+不会表达
+
+判断标准：
+
+知识存在，能力不足。
+
+HABIT（习惯问题）
+
+定义：
+
+知识会
+能力会
+结果做错
+
+判断标准：
+
+粗心
+遗漏
+检查不到位
+五、错误原因（Reason）
+KNOWLEDGE
+CONCEPT_NOT_CLEAR（概念不清）
+FORMULA_NOT_KNOWN（公式不会）
+KNOWLEDGE_FORGOTTEN（知识遗忘）
+CONCEPT_CONFUSED（概念混淆）
+RULE_INCORRECT（规则记错）
+ABILITY
+QUESTION_MISUNDERSTOOD（审题错误）
+WRONG_THINKING（解题思路错误）
+LOGIC_INSUFFICIENT（逻辑推理不足）
+READING_INSUFFICIENT（阅读理解不足）
+INFORMATION_EXTRACTION（信息提取不足）
+ANALYSIS_INSUFFICIENT（综合分析不足）
+HABIT
+CARELESS（粗心）
+SKIPPED_QUESTION（漏题）
+MISSING_STEP（漏步骤）
+WRONG_COPY（抄错数字）
+MISSING_UNIT（漏写单位）
+INSUFFICIENT_CHECK（检查不到位）
+六、学科扩展策略
+
+一级分类永远保持：
+
+KNOWLEDGE
+ABILITY
+HABIT
+
+不增加第四级分类。
+
+不同学科通过 ErrorReasonMaster 扩展原因。
+
+数学
+
+知识问题：
+
+概念不清
+公式不会
+知识点遗忘
+
+能力问题：
+
+不会列方程
+不会建模
+不会画辅助线
+不会举一反三
+
+习惯问题：
+
+计算粗心
+漏步骤
+抄错数字
+漏写单位
+英语
+
+知识问题：
+
+单词不会
+语法不会
+固定搭配不会
+
+能力问题：
+
+阅读理解不足
+上下文推断不足
+写作表达不足
+
+习惯问题：
+
+拼写错误
+大小写错误
+时态漏写
+七、数据模型
+
+Semester（学期表，核心层）
+
+字段：
+
+id                  -- 主键
+student_id          -- 所属学生
+semester_code       -- 学期编码，如 "2026-FALL"、"2026-SPRING"
+display_name        -- 显示名称，如 "四年级上学期"
+start_date          -- 学期开始日期
+end_date            -- 学期结束日期（可选）
+is_current          -- 是否当前学期（用于默认筛选）
+created_at          -- 创建时间
+
+说明：
+  - 每个学生的学期列表独立管理，家长在录入错题时从列表中选择
+  - 支持按学期筛选错题，也支持“全部学期”查看累计数据
+  - 到初三时，可查看初中三年的所有错题
+
+Mistake（错题主表）
+
+字段：
+
+id
+student_id
+subject_code
+grade_code
+semester_id          -- 学期外键，录入时必填（如“四年级上学期”），用于学期筛选
+question_content
+student_answer
+teacher_answer
+image_url
+created_at
+AIAnalysis
+
+字段：
+
+id
+mistake_id
+ai_category
+ai_reason_id
+ai_confidence
+analysis_remark
+created_at
+Review
+
+字段：
+
+id
+mistake_id
+review_status
+final_category
+final_reason_id
+reviewed_at
+review_comment
+Correction
+
+字段：
+
+id
+mistake_id
+correction_type
+correction_content
+correction_file_url
+created_at
+ErrorReasonMaster
+
+字段：
+
+id
+reason_code
+reason_name
+category_code
+subject_code
+enabled
+sort_order
+KnowledgePoint（已升级为全局共享模型，详见「知识图谱体系」文档）
+
+八、核心统计模型
+
+未来所有统计均基于：
+
+Knowledge Point + Error Category + Error Reason
+
+支持：
+
+知识点统计
+错因统计
+TOP错误原因
+TOP薄弱知识点
+学科分析
+顽固问题分析
+学习画像
+九、最终设计冻结（Design Frozen）
+
+V1正式冻结如下设计：
+
+错误类别：
+
+KNOWLEDGE
+ABILITY
+HABIT
+
+核心统计模型：
+
+Knowledge Point
+Error Category
+Error Reason
+
+审核原则：
+
+AI推荐 → 人工确认 → 统计分析
+十、最终结论
+
+AI负责发现问题。
+
+家长负责确认问题。
+
+系统负责记录成长。
+
+所有分析统一采用：
+
+Knowledge Point + Error Category + Error Reason
+
+作为 AI学习成长档案系统 的核心数据模型。
+
+十一、接口约定（Event & Interface Contract）
+════════════════════════════════════
+
+11.1 本模块发出的事件
+
+  事件 E1：mistake.created
+    触发时机：新错题入库（AI管道 或 手动录入后）
+    携带数据：mistake_id, student_id, subject_code
+    消费方：
+      → 复习体系：为该错题生成 review_plan（Day1/3/7/15/30/60）
+      → 知识图谱：创建 mistake_knowledge_point 关联
+      → 学习记录：创建 learning_record（record_type=MISTAKE）
+
+  事件 E2：mistake.reviewed
+    触发时机：家长完成人工审核（确认/修改知识点、错因）
+    携带数据：mistake_id, final_category, final_reason_id, knowledge_point_ids
+    消费方：
+      → 知识图谱：更新 knowledge_mastery（根据错因调整 mastery_score）
+      → 复习体系：根据审核结果调整复习计划
+      → 成长体系：检查是否触发经验值（订正完成 +15 EXP）
+
+  事件 E3：correction.completed
+    触发时机：学生完成错题订正
+    携带数据：mistake_id, student_id, correction_id
+    消费方：
+      → 成长体系：检查 BREAKTHROUGH 类勋章（初战告捷、错题克星）
+      → 表扬体系：检查是否生成 EFFORT 表扬卡
+      → 知识图谱：更新 mastery_score
+
+11.2 本模块消费的外部事件
+
+  事件 E5：review.completed（来自复习体系）
+    处理逻辑：
+      如果 target_type = MISTAKE：
+        查询关联的 mistake_id
+        更新复习结果到 mistake 的掌握状态
+
+  事件 E10：weakness.detected（来自知识图谱）
+    处理逻辑：
+      查询该知识点相关的所有历史错题
+      在「错题中心」标记为「重点关注」
+
+11.3 接口数据格式
+
+  mistake.created 事件体：
+    {
+      "event": "mistake.created",
+      "mistake_id": "uuid",
+      "student_id": "uuid",
+      "subject_code": "MATH",
+      "knowledge_point_ids": ["uuid1", "uuid2"],
+      "created_at": "2026-10-01T10:30:00Z"
+    }
+
+  mistake.reviewed 事件体：
+    {
+      "event": "mistake.reviewed",
+      "mistake_id": "uuid",
+      "student_id": "uuid",
+      "final_category": "KNOWLEDGE",
+      "final_reason_id": "uuid",
+      "knowledge_point_ids": ["uuid1"],
+      "reviewed_at": "2026-10-01T11:00:00Z"
+    }
+
+
+状态：✅ V1.0 Design Final
+
+成熟度评估：
+
+业务模型：95%
+数据模型：95%
+扩展能力：95%
+统计能力：95%
+可开发程度：95%

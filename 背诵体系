@@ -1,0 +1,507 @@
+5.3.1 设计目标
+
+背诵体系用于管理需要长期记忆的知识内容。
+
+适用学科：
+
+历史
+地理
+政治
+生物
+英语单词
+古诗文
+文学常识
+
+背诵体系的核心目标不是记录是否背诵，而是管理知识掌握过程。
+
+Plain Text
+学习
+↓
+遗忘
+↓
+复习
+↓
+掌握
+Show more lines
+5.3.2 核心设计原则
+原则1：以知识点为中心
+
+系统关注：
+
+Plain Text
+掌握了什么
+Show more lines
+
+而不是：
+
+Plain Text
+今天背了多久
+Show more lines
+原则2：记录遗忘
+
+系统不仅记录：
+
+Plain Text
+记住
+Show more lines
+
+还记录：
+
+Plain Text
+忘记
+Show more lines
+
+遗忘记录是后续掌握度分析的重要依据。
+
+原则3：持续复习
+
+背诵不是一次完成。
+
+系统通过复习机制持续跟踪知识掌握情况。
+
+原则4：支持长期成长分析
+
+系统能够分析：
+
+遗忘次数
+复习次数
+掌握趋势
+薄弱知识点
+5.3.3 Memory Point
+
+定义：
+
+一个需要长期记忆和复习的知识点。
+
+示例：
+
+Plain Text
+辛亥革命意义
+ 
+社会主义核心价值观
+ 
+长江流经省份
+ 
+although
+ 
+会当凌绝顶 下一句
+``
+Show more lines
+5.3.4 Memory Type
+
+字段：
+
+Plain Text
+memory_type
+
+FACT
+事实记忆
+
+CONCEPT
+概念记忆
+
+LIST
+列表记忆
+
+TIMELINE
+时间线记忆
+
+MAP
+地图记忆
+``FACT
+
+示例：
+
+Plain Text
+1911年
+ 
+辛亥革命
+Show more lines
+CONCEPT
+
+示例：
+
+Plain Text
+洋务运动
+ 
+市场经济
+Show more lines
+LIST
+
+示例：
+
+Plain Text
+社会主义核心价值观
+ 
+历史事件意义
+Show more lines
+TIMELINE
+
+示例：
+
+Plain Text
+中国近代史时间线
+Show more lines
+MAP
+
+示例：
+
+Plain Text
+长江流域
+ 
+世界气候带
+Show more lines
+5.3.5 MemoryPoint 表
+
+表名：
+
+Plain Text
+memory_point
+Show more lines
+
+字段：
+
+Plain Text
+id
+ 
+Show more lines
+
+主键
+
+Plain Text
+student_id
+``
+Show more lines
+
+学生ID
+
+Plain Text
+subject_code
+Show more lines
+
+所属学科
+
+Plain Text
+knowledge_point_id
+``
+Show more lines
+
+关联知识点
+
+Plain Text
+memory_type
+ 
+Show more lines
+
+记忆类型
+
+Plain Text
+title
+Show more lines
+
+标题
+
+示例：
+
+Plain Text
+辛亥革命意义
+Show more lines
+Plain Text
+question
+Show more lines
+
+记忆卡正面内容
+
+Plain Text
+answer
+Show more lines
+
+记忆卡反面内容
+
+Plain Text
+created_at
+``
+Show more lines
+
+创建时间
+
+Plain Text
+updated_at
+``
+Show more lines
+
+更新时间
+
+5.3.6 MemoryReview 表（已废弃）
+
+  ⚠️ 本节及以下 5.3.7、5.3.8 的内容已废弃。
+  复习相关功能统一由复习体系管理：
+    复习计划 → review_plan（target_type=MEMORY）
+    复习记录 → review_record（review_result = PASS/PARTIAL/FAIL）
+  原 memory_review 表和独立的 review_plan 表不再使用。
+  原 REMEMBERED/PARTIAL/FORGOTTEN 枚举统一为 PASS/PARTIAL/FAIL。
+  详见：架构整合方案 + 复习体系。
+
+以下为原始定义（仅供参考，不作为开发依据）：
+
+记录每次复习结果。
+
+表名：
+
+Plain Text
+memory_review
+Show more lines
+
+字段：
+
+Plain Text
+id
+Show more lines
+
+主键
+
+Plain Text
+memory_point_id
+ 
+Show more lines
+
+关联MemoryPoint
+
+Plain Text
+review_date
+Show more lines
+
+复习时间
+
+Plain Text
+review_result
+Show more lines
+
+复习结果
+
+Plain Text
+review_comment
+Show more lines
+
+备注
+
+5.3.7 Review Result
+
+字段：
+
+Plain Text
+review_result
+Show more lines
+
+取值：
+
+Plain Text
+REMEMBERED
+Show more lines
+
+记住
+
+Plain Text
+PARTIAL
+Show more lines
+
+记住部分内容
+
+Plain Text
+FORGOTTEN
+Show more lines
+
+忘记
+
+5.3.8 Review Plan
+
+用于生成复习计划。
+
+表名：
+
+Plain Text
+review_plan
+`
+Show more lines
+
+字段：
+
+Plain Text
+id
+ 
+memory_point_id
+ 
+planned_date
+ 
+review_round
+ 
+completed
+Show more lines
+review_round
+
+取值：
+
+Plain Text
+DAY1
+ 
+DAY3
+ 
+DAY7
+ 
+DAY15
+ 
+DAY30
+ 
+DAY60
+``
+Show more lines
+5.3.9 与 LearningRecord 关系（已更新）
+Plain Text
+LearningRecord (learning_record)
+│
+└── MemoryPoint (memory_point)
+      │
+      └── review_plan (target_type=MEMORY)
+              │
+              └── review_record
+  注：复习由复习体系统一管理，不再使用独立的 MemoryReview 和 ReviewPlan。
+Show more lines
+5.3.10 统计分析
+
+系统支持：
+
+遗忘次数
+
+根据 review_record 中 review_result=FAIL 的记录动态计算。
+
+复习次数
+
+根据 review_record（target_type=MEMORY）统计。
+
+高频遗忘知识点
+
+例如：
+
+Plain Text
+辛亥革命意义
+ 
+遗忘次数：5
+Show more lines
+学科掌握情况
+
+例如：
+
+Plain Text
+历史
+ 
+记忆点：120
+ 
+已稳定掌握：85
+ 
+待加强：35
+``
+Show more lines
+5.3.11 不纳入 MemoryPoint 的内容
+
+以下内容不存储在 MemoryPoint 表：
+
+掌握度
+
+由知识图谱体系统一管理（knowledge_mastery 表）。
+
+遗忘次数
+
+由复习体系的 review_record 动态统计。
+
+成长分析
+
+由成长体系和学习画像计算。
+
+5.3.12 最终设计冻结（Design Frozen）
+
+背诵体系核心模型：
+
+Plain Text
+MemoryPoint
+ 
+KnowledgePoint（引用知识图谱体系）
+Show more lines
+
+  注：复习相关由复习体系统一管理（review_plan + review_record）
+  注：KnowledgePoint 定义详见知识图谱体系
+
+核心目标：
+
+Plain Text
+记录知识掌握过程
+Show more lines
+
+而不是：
+
+Plain Text
+记录是否背诵
+Show more lines
+
+接口约定（Event & Interface Contract）
+════════════════════════════════════
+
+本模块发出的事件：
+
+  事件 E3：memory_point.created
+    触发时机：新建记忆点（家长手动录入 或 AI 推荐后确认）
+    携带数据：memory_point_id, student_id, subject_code, knowledge_point_id
+    消费方：
+      → 复习体系：为该记忆点生成 review_plan（target_type=MEMORY）
+      → 学习记录：创建 learning_record（record_type=MEMORY）
+      → 知识图谱：如果关联了 knowledge_point_id，初始化 mastery
+
+  事件：memory_point.mastered
+    触发时机：记忆点 mastery_score 首次达到 >= 80
+    携带数据：memory_point_id, student_id, mastery_score
+    消费方：
+      → 成长体系：检查 MASTERY 类勋章（背诵能手、背诵高手）
+      → 表扬体系：检查是否生成 MILESTONE 表扬卡
+
+本模块消费的外部事件：
+
+  事件 E5：review.completed（来自复习体系）
+    处理逻辑：
+      如果 target_type = MEMORY：
+        根据 review_result 更新记忆点状态
+        PASS → 记录为 REMEMBERED
+        FAIL → 记录为 FORGOTTEN
+        更新统计（遗忘次数、复习次数）
+
+  事件 E6：review.failed（来自复习体系）
+    处理逻辑：
+      如果 target_type = MEMORY：
+        遗忘次数 +1
+        检查是否需要标记为「高频遗忘知识点」
+
+接口数据格式：
+
+  memory_point.created 事件体：
+    {
+      "event": "memory_point.created",
+      "memory_point_id": "uuid",
+      "student_id": "uuid",
+      "subject_code": "HISTORY",
+      "knowledge_point_id": "uuid",
+      "memory_type": "FACT",
+      "created_at": "2026-10-01T10:30:00Z"
+    }
+
+
+状态：
+
+✅ V1.0 Design Final
+
+成熟度评估：
+
+业务模型：95%
+数据模型：90%
+扩展能力：95%
+统计能力：90%
+可开发程度：95%
+
+结论：

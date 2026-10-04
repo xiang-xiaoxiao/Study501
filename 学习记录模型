@@ -1,0 +1,327 @@
+5.2.1 设计目标
+
+LearningRecord 是系统中的核心根对象。
+
+定义：
+
+一次有价值的学习行为记录。
+
+它用于统一管理：
+
+错题
+背诵
+阅读
+作文
+单词
+复习
+
+避免系统后期演变成多个孤立模块。
+
+5.2.2 设计原则
+原则1
+
+所有学习行为统一进入 LearningRecord。
+
+原则2
+
+LearningRecord 只保存通用信息。
+
+具体内容存储在对应子表。
+
+原则3
+
+LearningRecord 不关心学科实现细节。
+
+统一作为学习成长档案的入口。
+5.2.3 Record Type
+字段名
+record_type
+取值
+MISTAKE
+错题
+
+MEMORY
+背诵
+
+VOCAB
+单词
+
+READING
+阅读
+
+WRITING
+作文
+
+REVIEW
+复习
+
+GRAMMAR_PRACTICE
+语法练习
+
+ENGLISH_READING
+英语阅读练习
+
+CHINESE_READING
+语文阅读
+
+5.2.4 LearningRecord 主表
+
+表名：
+
+Plain Text
+learning_record
+Show more lines
+
+字段：
+
+Plain Text
+id
+Show more lines
+
+主键
+
+Plain Text
+student_id
+Show more lines
+
+学生ID
+
+Plain Text
+subject_code
+Show more lines
+
+学科编码
+
+例如：
+
+Plain Text
+MATH
+ 
+ENGLISH
+ 
+CHINESE
+ 
+HISTORY
+ 
+GEOGRAPHY
+ 
+POLITICS
+Show more lines
+Plain Text
+record_type
+Show more lines
+
+学习记录类型
+
+Plain Text
+title
+Show more lines
+
+标题
+
+示例：
+
+Plain Text
+分数应用题
+ 
+辛亥革命
+ 
+although
+ 
+夏洛的网
+``
+Show more lines
+Plain Text
+description
+Show more lines
+
+简要描述
+
+Plain Text
+source
+Show more lines
+
+来源
+
+取值：
+
+Plain Text
+EXAM
+ 
+HOMEWORK
+ 
+QUIZ
+ 
+READING
+ 
+PARENT
+Show more lines
+Plain Text
+status
+Show more lines
+
+状态
+
+取值：
+
+Plain Text
+NEW
+ 
+IN_PROGRESS
+ 
+COMPLETED
+Show more lines
+Plain Text
+occurred_at
+Show more lines
+
+学习行为发生时间
+
+Plain Text
+created_at
+Show more lines
+
+记录创建时间
+
+Plain Text
+updated_at
+ 
+Show more lines
+
+更新时间
+
+5.2.5 子表关系
+Plain Text
+LearningRecord (learning_record)
+│
+├── MistakeRecord      → 实际表名：mistake
+├── MemoryRecord       → 实际表名：memory_point
+├── VocabularyRecord   → 实际表名：vocabulary
+├── ReadingRecord      → 实际表名：reading_book
+├── WritingRecord      → 实际表名：chinese_essay（语文）/ english_writing（英语）
+├── GrammarPractice    → 实际表名：english_grammar_practice
+├── EnglishReading     → 实际表名：english_reading_practice
+├── ChineseReading     → 实际表名：chinese_reading_practice
+└── ReviewRecord       → 实际表名：review_record
+
+  注：左侧为声明名，右侧为实际数据库表名。
+Show more lines
+5.2.6 与错因体系关系
+
+只有：
+
+Plain Text
+MistakeRecord
+Show more lines
+
+关联错因体系。
+
+关系如下：
+
+Plain Text
+LearningRecord
+│
+└── MistakeRecord
+│
+├── KnowledgePoint
+├── ErrorCategory
+└── ErrorReason
+Show more lines
+5.2.7 不属于 LearningRecord 的内容
+
+以下内容不放入 LearningRecord：
+
+掌握度
+
+单独表：
+
+Plain Text
+knowledge_mastery
+Show more lines
+成长成就
+
+单独表：
+
+Plain Text
+achievement
+Show more lines
+阅读统计
+
+单独表：
+
+Plain Text
+reading_summary
+Show more lines
+学习画像
+
+单独表：
+
+Plain Text
+student_profile
+
+
+接口约定（Event & Interface Contract）
+════════════════════════════════════
+
+学习记录模型是全系统的「事件总线入口」。
+
+所有学习行为统一通过 learning_record 创建记录，
+每个 record_type 对应不同的业务子表。
+
+本模块发出的事件：
+
+  事件：learning_record.created
+    触发时机：任何类型的学习记录创建时
+    携带数据：record_id, student_id, record_type, subject_code, title
+    消费方：
+      → 成长体系：经验值 +5 EXP（完成一次学习记录）
+      → 成长体系：检查连续学习天数是否更新
+      → 学习画像：更新学习习惯统计
+
+  事件：streak.updated
+    触发时机：连续学习天数发生变化
+    携带数据：student_id, current_streak, max_streak
+    消费方：
+      → 成长体系：检查 PERSISTENCE 类勋章
+        （三天打鱼/一周坚持/半月达人/月度之星/百日长征）
+      → 表扬体系：检查是否生成 PERSISTENCE 表扬卡
+
+本模块消费的外部事件：
+
+  事件 E1：mistake.created（来自错误体系）
+    处理逻辑：
+      创建 learning_record（record_type=MISTAKE）
+
+  事件 E3：memory_point.created（来自背诵体系）
+    处理逻辑：
+      创建 learning_record（record_type=MEMORY）
+
+  事件 E4：vocabulary.learned（来自单词体系）
+    处理逻辑：
+      创建 learning_record（record_type=VOCAB）
+
+  事件 E7：reading.finished（来自阅读体系）
+    处理逻辑：
+      创建 learning_record（record_type=READING）
+
+接口数据格式：
+
+  learning_record.created 事件体：
+    {
+      "event": "learning_record.created",
+      "record_id": "uuid",
+      "student_id": "uuid",
+      "record_type": "MISTAKE",
+      "subject_code": "MATH",
+      "title": "分数应用题",
+      "occurred_at": "2026-10-01T10:30:00Z"
+    }
+
+  streak.updated 事件体：
+    {
+      "event": "streak.updated",
+      "student_id": "uuid",
+      "current_streak": 7,
+      "max_streak": 12,
+      "last_active_date": "2026-10-07"
+    }

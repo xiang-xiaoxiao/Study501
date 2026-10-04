@@ -1,0 +1,321 @@
+开发任务清单（Development Tasks）
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+定位：将 19 份设计文档转化为可执行的开发步骤
+技术栈：Next.js + Tailwind CSS + shadcn/ui + Supabase + DeepSeek/Qwen
+部署：Vercel（Web App / PWA，无需上架应用商店）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+〇、环境搭建（一次性，约 1 小时）
+══════════════════════════
+
+  0.1 安装 Node.js
+      去 nodejs.org 下载 LTS 版本，双击安装。
+
+  0.2 安装代码编辑器
+      推荐 VS Code（免费），安装中文语言包。
+
+  0.3 创建 Next.js 项目
+      在终端运行：
+      npx create-next-app@latest learning-archive --typescript --tailwind --app
+      cd learning-archive
+
+  0.4 安装 shadcn/ui
+      npx shadcn@latest init
+      按需安装组件：button, card, input, select, table, dialog, tabs...
+
+  0.5 注册 Supabase 项目
+      去 supabase.com 注册账号 → Create Project → 记录：
+        - Project URL
+        - anon public key
+        - service_role key
+
+  0.6 安装 Supabase 客户端
+      npm install @supabase/supabase-js
+
+  0.7 注册 AI API
+      DeepSeek（platform.deepseek.com）或 通义千问（dashscope.aliyun.com）
+      获取 API Key，存入 .env.local 文件。
+
+  0.8 注册 OCR 服务
+      百度 OCR（ai.baidu.com）→ 创建应用 → 获取 API Key。
+
+  0.9 初始化 Git 仓库
+      git init
+      git add .
+      git commit -m "初始项目"
+
+  0.10 部署到 Vercel（可选，后期再做）
+      vercel login
+      vercel --prod
+
+
+一、Phase 1：核心基础（约 2~3 天）
+══════════════════════════
+
+目标：搭好骨架，能在浏览器里看到基本界面。
+
+  1.1 数据库建表 — 核心层（7 张表）
+      ┌───────────────────────┬──────────────────────────────────────┐
+      │ 表名                   │ 来源文档                              │
+      ├───────────────────────┼──────────────────────────────────────┤
+      │ student               │ 学习记录模型                          │
+      │ app_settings          │ 学习记录模型                          │
+      │ learning_record       │ 学习记录模型                          │
+      │ knowledge_point       │ 知识图谱体系                          │
+      │ knowledge_point_relation│ 知识图谱体系                        │
+      │ knowledge_mastery     │ 知识图谱体系                          │
+      │ mistake_knowledge_point│ 知识图谱体系                         │
+      └───────────────────────┴──────────────────────────────────────┘
+      操作：在 Supabase Dashboard → SQL Editor 中逐表执行建表语句。
+
+  1.2 数据库建表 — 错误体系（3 张表）
+      mistake · mistake_review · error_type
+
+  1.3 数据库建表 — 复习体系（2 张表）
+      review_plan（含 subject_code 字段）· review_record
+
+  1.4 基础页面布局
+      ┌──────────────────────────────────────┐
+      │ 创建主布局：底部 Tab 导航              │
+      │  首页 / 错题中心 / 复习中心 / 成长中心 / 我的 │
+      │ 使用 shadcn/ui 的 Tabs 组件            │
+      └──────────────────────────────────────┘
+
+  1.5 学生切换功能
+      首次打开：创建两个学生档案（姓名 + 年级）
+      顶部显示当前学生，点击可切换
+      切换后所有页面数据跟着变
+
+  1.6 首页骨架
+      今日待复习数 · 本周新增错题数 · 最近学习动态
+      数据来源：后续模块完成后再接入真实数据，先显示静态数字
+
+  ✅ Phase 1 验收标准：
+     打开浏览器看到底部导航栏，能在 5 个页面间切换，
+     顶部能切换学生，首页显示静态数字。
+
+
+二、Phase 2：错题核心链路（约 3~5 天）
+══════════════════════════
+
+目标：跑通 "拍照 → AI 分析 → 存入错题 → 显示在列表" 的最小闭环。
+
+  2.1 拍照上传页面
+      浏览器调用摄像头拍照 / 从相册选择
+      上传图片到 Supabase Storage
+      显示上传进度和预览
+
+  2.2 OCR 识别
+      上传图片 → 调用百度 OCR API
+      返回文字内容，显示在页面上
+      家长可手动修正 OCR 结果
+
+  2.3 AI 分析流水线
+      OCR 文字 → 调用 DeepSeek/Qwen API
+      输出结构化 JSON：
+        subject_code（学科）
+        error_category（错因类型：KNOWLEDGE/ABILITY/HABIT）
+        error_detail（具体分析）
+        knowledge_points（关联知识点列表）
+      显示分析结果，家长审核确认
+
+  2.4 写入 mistake 表
+      确认后将分析结果写入 mistake 表
+      同时写入 mistake_knowledge_point（关联知识点）
+      同时写入 knowledge_mastery（降低 mastery_score）
+      触发事件 mistake.created (E1)
+
+  2.5 自动生成复习计划
+      消费 E1 事件 → 在 review_plan 表中创建 6 轮复习计划
+      Day1/3/7/15/30/60，自动计算 planned_date
+
+  2.6 错题中心页面
+      错题列表：学科筛选 + 错因筛选 + 分页
+      错题详情：原题图片 + AI 分析 + 知识点标签 + 审核状态
+      长按/勾选 → 批量删除
+
+  ✅ Phase 2 验收标准：
+     拍一张数学试卷 → OCR 识别出题目 → AI 分析出错因和知识点
+     → 家长确认 → 错题出现在列表中 → 自动生成 6 轮复习计划。
+
+
+三、Phase 3：复习闭环（约 2~3 天）
+══════════════════════════
+
+目标：复习卡片能用，完成日常复习闭环。
+
+  3.1 复习中心 — 今日待复习
+      查询 review_plan WHERE planned_date <= today AND completed = false
+      按学科分组展示
+
+  3.2 复习卡片交互
+      根据 target_type 显示不同的复习卡片：
+        MISTAKE → 显示原题 + 提问错因
+        MEMORY  → 显示问题 + 翻转看答案
+        VOCAB   → 显示单词 + 提问含义
+      判断按钮：记住(PASS) / 部分记住(PARTIAL) / 忘了(FAIL)
+
+  3.3 复习结果处理
+      PASS → 创建 review_record + 更新 review_plan.completed
+           → 触发 review.completed (E5)
+           → mastery_score 上升 + 生成下一轮计划
+      FAIL → 触发 review.failed (E6)
+           → mastery_score 下降 + 重置为 Day1
+
+  3.4 复习统计
+      本周完成数 / 逾期数 / 最易遗忘知识点
+
+  ✅ Phase 3 验收标准：
+     打开复习中心 → 看到今天的复习任务 → 逐项做复习卡片
+     → 完成后统计更新 → 下一轮复习自动排期。
+
+
+四、Phase 4：扩展内容模块（约 3~5 天）
+══════════════════════════
+
+目标：补齐背诵、单词、阅读三个内容模块。
+
+  4.1 背诵体系
+      数据库：memory_point · memory_mastery（2 张表）
+      页面：背诵列表 + 问答卡片 + 创建背诵内容
+      联动：创建后触发 memory_point.created (E3) → 自动生成复习计划
+
+  4.2 单词体系
+      数据库：vocabulary · vocabulary_mastery · word_book · word_book_item（4 张表）
+      页面：单词本管理 + 单词学习 + 单词复习
+      联动：学习后触发 vocabulary.learned (E4) → 自动生成复习计划
+
+  4.3 阅读体系
+      数据库：reading_book · reading_record（2 张表）
+      页面：书籍列表 + 阅读记录 + 感想
+      联动：完成后触发 reading.finished (E7)
+
+  ✅ Phase 4 验收标准：
+     能添加背诵内容、导入单词本、记录阅读书籍，
+     各模块内容都出现在复习中心的今日待复习列表中。
+
+
+五、Phase 5：引擎模块（约 3~5 天）
+══════════════════════════
+
+目标：加入 AI 出题、成长体系、表扬体系。
+
+  5.1 AI 出题体系
+      数据库：question · quiz_session · quiz_answer（3 张表）
+      页面：训练中心 → 选学科 → 做题 → 批改 → 查看结果
+      支持打印：生成 PDF（题目卷 + 答案卷）
+      出题策略：WEAKNESS_FOCUS（默认）/ DAILY_MIX / PRE_REQUISITE
+
+  5.2 成长体系
+      数据库：achievement_definition · achievement_record · student_growth · exp_log（4 张表）
+      页面：成长中心 → 勋章墙 + 等级进度 + 经验值日志
+      消费事件：E5/E6/E7/E8/E9/E11
+
+  5.3 表扬体系
+      数据库：praise_card · praise_template（2 张表）
+      页面：表扬卡列表 + 卡片详情（可分享/打印）
+      自动触发条件：连续学习、掌握里程碑、阅读完成、成绩进步
+
+  ✅ Phase 5 验收标准：
+     能做 AI 生成的针对性练习题，能看到勋章和经验值增长，
+     达成条件后自动收到表扬卡。
+
+
+六、Phase 6：汇聚层 + 考前专项（约 3~4 天）
+══════════════════════════
+
+目标：完成学习画像、成绩追踪、考前专项复习。
+
+  6.1 学习画像体系
+      数据库：student_profile · profile_report（2 张表）
+      页面：多维画像仪表盘 + 学科能力雷达图 + 趋势图
+      消费事件：E11 考试成绩 → 更新成绩趋势维度
+
+  6.2 成绩追踪
+      数据库：exam · exam_score（2 张表）
+      页面：录入考试成绩 + 成绩趋势图 + 4 维度有效性评估
+      触发事件：exam_score.recorded (E11)
+
+  6.3 考前专项复习
+      入口：复习中心 → "开始专项复习"
+      流程：选学科 → 选错因 → 汇总薄弱点 → 生成专项练习 (EXAM_PREP)
+      输出：专项练习卷（线上 + 打印）+ 复习报告
+
+  6.4 知识图谱页面
+      知识点树形展示 + 掌握度热力图 + 薄弱点高亮
+      点击知识点 → 查看关联错题 + 复习历史
+
+  ✅ Phase 6 验收标准：
+     录入考试成绩后看到有效性评估报告，
+     期末前能按学科+错因生成专项练习卷。
+
+
+七、Phase 7：打磨与部署（约 2~3 天）
+══════════════════════════
+
+  7.1 响应式优化
+      确保手机端体验良好（PWA 适配）
+      添加到主屏幕的 manifest.json 配置
+
+  7.2 数据备份
+      Supabase 自动备份配置
+      导出功能：错题 PDF、成绩单 CSV
+
+  7.3 部署上线
+      Vercel 部署 + 自定义域名（可选）
+      手机访问测试
+
+  7.4 审核中心
+      所有 AI 生成内容的审核入口
+      审核通过 / 修改 / 驳回
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+总工作量估算
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Phase 0  环境搭建          约 1 小时
+  Phase 1  核心基础          约 2~3 天
+  Phase 2  错题核心链路      约 3~5 天
+  Phase 3  复习闭环          约 2~3 天
+  Phase 4  扩展内容模块      约 3~5 天
+  Phase 5  引擎模块          约 3~5 天
+  Phase 6  汇聚+考前专项    约 3~4 天
+  Phase 7  打磨与部署        约 2~3 天
+  ─────────────────────────────────
+  合计                      约 20~30 天（每天 2~3 小时）
+
+  数据库：41 张表（分 6 批建）
+  页面：约 15 个主要页面
+  API 集成：OCR + AI 分析 + AI 出题 = 3 个外部 API
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+每个 Phase 的 AI 协作方式
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  你告诉 AI 的话（示例）：
+
+  Phase 1：
+    "帮我建 student 表和 app_settings 表，这是建表语句的参考 [粘贴设计文档]"
+    "帮我做底部 Tab 导航，5 个页面：首页、错题中心、复习中心、成长中心、我的"
+
+  Phase 2：
+    "帮我做拍照上传功能，拍完上传到 Supabase Storage"
+    "帮我接入百度 OCR，图片转成文字"
+    "帮我写 AI 分析 prompt，输入是 OCR 文字，输出是学科+错因+知识点的 JSON"
+
+  Phase 3：
+    "帮我做复习卡片页面，根据 target_type 显示不同内容"
+    "帮我写复习结果的处理逻辑，PASS/FAIL 分别怎么处理"
+
+  通用：
+    "这个页面在手机上看太挤了，帮我调一下间距"
+    "这个表格加一个学科筛选的下拉框"
+    "报错了：[粘贴错误信息]"
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+状态：V1.0

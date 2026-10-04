@@ -1,0 +1,938 @@
+架构整合方案 V1.0
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+目标：消除现有 6 个体系间的结构冲突，建立统一、一致、可扩展的全局架构。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+一、全局架构总览
+════════════════
+
+1.1 系统分层
+
+系统分为四层，从上到下依次是：
+
+    ┌─────────────────────────────────────────┐
+    │          表现层（页面/交互）              │
+    │  首页 · 错题中心 · 复习中心 · 成长中心   │
+    └─────────────────┬───────────────────────┘
+                      │
+    ┌─────────────────▼───────────────────────┐
+    │          业务层（体系模块）               │
+    │  错误 · 背诵 · 单词 · 阅读 · 复习 · 成长 │
+    └─────────────────┬───────────────────────┘
+                      │
+    ┌─────────────────▼───────────────────────┐
+    │          核心层（根对象 + 共享模型）       │
+    │  LearningRecord · KnowledgePoint · Student│
+    └─────────────────┬───────────────────────┘
+                      │
+    ┌─────────────────▼───────────────────────┐
+    │          基础设施层                       │
+    │  OCR · AI分析 · 存储 · 消息通知           │
+    └─────────────────────────────────────────┘
+
+
+1.2 体系职责边界
+
+┌──────────────────┬──────────────────────────────────────┐
+│ 体系              │ 职责                                 │
+├──────────────────┼──────────────────────────────────────┤
+│ 学习记录模型      │ 所有学习行为的统一入口（根对象）       │
+│ 错误体系          │ 错题记录 + AI分析 + 人工审核 + 订正    │
+│ 背诵体系          │ 记忆型知识点管理 + 问答卡片            │
+│ 单词体系          │ 英语单词全生命周期管理                 │
+│ 阅读体系          │ 书籍阅读档案 + 感想 + AI互动           │
+│ 复习体系          │ 全系统统一复习调度引擎 + 考前专项复习 │
+│ 成绩追踪          │ 考试成绩记录 + 工具有效性评估         │
+└──────────────────┴──────────────────────────────────────┘
+
+
+二、冲突 1：ReviewPlan 表统一（严重）
+════════════════════════════════════
+
+2.1 冲突现状
+
+  背诵体系定义的 review_plan：
+    id
+    memory_point_id     ← 只能关联 MemoryPoint
+    planned_date
+    review_round
+    completed
+
+  复习体系定义的 review_plan：
+    id
+    student_id
+    target_type          ← 多态，可关联任意对象
+    target_id
+    planned_date
+    review_round
+    review_status
+    created_at
+
+  冲突：
+    - 外键方式不同（专用外键 vs 多态外键）
+    - 字段不同（completed vs review_status，缺少 student_id）
+    - 如果两套表共存，系统将产生两套复习数据
+
+
+2.2 解决方案：统一为复习体系的多态设计
+
+  全系统只保留一张 review_plan 表，采用复习体系的多态设计。
+
+  最终表结构：
+
+    review_plan
+    ┌───────────────┬──────────┬────────────────────────────┐
+    │ 字段           │ 类型      │ 说明                       │
+    ├───────────────┼──────────┼────────────────────────────┤
+    │ id             │ UUID     │ 主键                       │
+    │ student_id     │ UUID     │ 学生ID                     │
+    │ target_type    │ ENUM     │ 复习对象类型（见下方枚举）   │
+    │ target_id      │ UUID     │ 关联对象的ID               │
+    │ subject_code   │ ENUM     │ 学科代码（反规范化，支持按学科筛选）│
+    │ pass_streak    │ INT      │ 连续 PASS 次数（≥3 则毕业）  │
+    │ graduated      │ BOOLEAN  │ 是否已毕业                   │
+    │ last_review_date│ DATE    │ 上次复习日期               │
+    │ review_status  │ ENUM     │ ACTIVE / GRADUATED          │
+    │ created_at     │ DATETIME │ 创建时间                   │
+    └───────────────┴──────────┴────────────────────────────┘
+
+  target_type 枚举：
+
+    MISTAKE    → 关联 mistake 表
+    MEMORY     → 关联 memory_point 表
+    VOCAB      → 关联 vocabulary 表
+    READING    → 关联 reading_book 表（V2）
+    WRITING    → 关联 writing 表（V2）
+
+  review_round 枚举：
+
+    DAY1  DAY3  DAY7  DAY15  DAY30  DAY60
+
+  review_status 枚举：
+
+    PENDING      待复习
+    COMPLETED    已完成
+    OVERDUE      逾期未复习
+
+
+2.3 对背诵体系的修改要求
+
+  删除：
+    背诵体系 5.3.8 中独立定义的 review_plan 表
+
+  改为：
+    MemoryPoint 通过复习体系的统一 review_plan 管理复习
+
+  关系变更：
+
+    修改前（背诵体系自有）：
+      MemoryPoint → review_plan（memory_point_id）
+
+    修改后（走复习体系）：
+      MemoryPoint ← review_plan（target_type=MEMORY, target_id=memory_point.id）
+
+
+2.4 对单词体系的确认
+
+  单词体系 5.5.8 已正确引用复习体系的 ReviewPlan，无需修改。
+
+  确认关系：
+    Vocabulary ← review_plan（target_type=VOCAB, target_id=vocabulary.id）
+
+
+
+三、冲突 2：ReviewRecord 与 MemoryReview 重叠（中等）
+════════════════════════════════════════════════════
+
+3.1 冲突现状
+
+  复习体系 review_record：
+    id
+    review_plan_id       ← 关联 review_plan
+    review_date
+    review_result        ← PASS / PARTIAL / FAIL
+    review_comment
+    created_at
+
+  背诵体系 memory_review：
+    id
+    memory_point_id      ← 直接关联 memory_point
+    review_date
+    review_result        ← REMEMBERED / PARTIAL / FORGOTTEN
+    review_comment
+
+  冲突：
+    - 字段几乎相同，但关联路径不同
+    - review_result 的语义标签不同（PASS vs REMEMBERED，FAIL vs FORGOTTEN）
+    - 存在双写风险
+
+
+3.2 解决方案：统一为 review_record，扩展 result 语义
+
+  全系统只保留一张 review_record 表，由复习体系统一管理。
+
+  最终表结构：
+
+    review_record
+    ┌───────────────┬──────────┬─────────────────────────────┐
+    │ 字段           │ 类型      │ 说明                        │
+    ├───────────────┼──────────┼─────────────────────────────┤
+    │ id             │ UUID     │ 主键                        │
+    │ review_plan_id │ UUID     │ 关联 review_plan            │
+    │ review_date    │ DATE     │ 实际复习日期                │
+    │ review_result  │ ENUM     │ 复习结果（统一枚举）         │
+    │ review_comment │ TEXT     │ 备注                        │
+    │ created_at     │ DATETIME │ 创建时间                    │
+    └───────────────┴──────────┴─────────────────────────────┘
+
+  review_result 统一枚举：
+
+    PASS       掌握/记住         （适用于所有类型）
+    PARTIAL    部分掌握/部分记住  （适用于所有类型）
+    FAIL       未掌握/遗忘       （适用于所有类型）
+
+  语义映射说明：
+
+    ┌──────────────┬─────────────────────────────────┐
+    │ 业务场景      │ 统一值      │ 业务含义           │
+    ├──────────────┼─────────────────────────────────┤
+    │ 错题复习      │ PASS        │ 已掌握             │
+    │              │ FAIL        │ 仍未掌握           │
+    │ 背诵复习      │ PASS        │ 已记住             │
+    │              │ FAIL        │ 已遗忘             │
+    │ 单词复习      │ PASS        │ 拼写/含义正确      │
+    │              │ FAIL        │ 拼写/含义错误      │
+    └──────────────┴─────────────────────────────────┘
+
+  结论：
+    PASS/PARTIAL/FAIL 已足够覆盖所有业务语义，
+    不需要为不同体系维护不同的结果枚举。
+    业务层在展示时可根据 target_type 显示不同的中文文案。
+
+
+3.3 对背诵体系的修改要求
+
+  删除：
+    背诵体系 5.3.6 中独立定义的 memory_review 表
+
+  改为：
+    背诵复习结果统一写入 review_record，通过 review_plan 关联
+
+  查询路径：
+    查询某个 MemoryPoint 的复习历史：
+
+      review_plan（target_type=MEMORY, target_id=xxx）
+        → review_record（review_plan_id）
+
+
+
+四、冲突 3：LearningRecord 子表映射不明确（中等）
+════════════════════════════════════════════════
+
+4.1 冲突现状
+
+  学习记录模型 5.2.5 声明了 6 个子表：
+
+    LearningRecord
+    ├── MistakeRecord
+    ├── MemoryRecord
+    ├── VocabularyRecord
+    ├── ReadingRecord
+    ├── WritingRecord
+    └── ReviewRecord
+
+  但各体系实际使用的表名和结构与此不一致。
+
+
+4.2 解决方案：建立明确的映射关系表
+
+  LearningRecord 与各体系实际表的映射：
+
+  ┌──────────────────┬──────────────────┬───────────┬──────────────────────┐
+  │ 声明的子表        │ 实际对应表        │ 所属体系   │ 关联方式              │
+  ├──────────────────┼──────────────────┼───────────┼──────────────────────┤
+  │ MistakeRecord    │ mistake          │ 错误体系   │ 1:1 learning_record_id│
+  │ MemoryRecord     │ memory_point     │ 背诵体系   │ 1:1 learning_record_id│
+  │ VocabularyRecord │ vocabulary       │ 单词体系   │ 1:1 learning_record_id│
+  │ ReadingRecord    │ reading_book     │ 阅读体系   │ 1:1 learning_record_id│
+  │ WritingRecord    │ chinese_essay    │ 语文模块   │ 1:1 learning_record_id│
+  │                  │ english_writing  │ 英语能力树 │ 1:1 learning_record_id│
+  │ GrammarPractice  │ english_grammar_practice │ 英语 │ 1:1 learning_record_id│
+  │ EnglishReading   │ english_reading_practice │ 英语 │ 1:1 learning_record_id│
+  │ ChineseReading   │ chinese_reading_practice │ 语文 │ 1:1 learning_record_id│
+  │ ReviewRecord     │ review_record    │ 复习体系   │ 1:1 learning_record_id│
+  └──────────────────┴──────────────────┴───────────┴──────────────────────┘
+
+
+4.3 关联模型说明
+
+  LearningRecord 是根对象，每条记录都有一个 record_type。
+  各子表通过 learning_record_id 反向关联 LearningRecord。
+
+  关系模型：
+
+    learning_record（根表）
+    │
+    ├── mistake（record_type=MISTAKE）
+    │     ├── ai_analysis
+    │     ├── review（人工审核，非复习）
+    │     ├── correction
+    │     └── mistake_knowledge_point（多对多关联知识点）
+    │
+    ├── memory_point（record_type=MEMORY）
+    │     └── 复习由 review_plan 统一管理
+    │
+    ├── vocabulary（record_type=VOCAB）
+    │     ├── vocabulary_learning
+    │     ├── vocabulary_mastery
+    │     └── 复习由 review_plan 统一管理
+    │
+    ├── reading_book（record_type=READING）
+    │     └── reading_reflection
+    │
+    ├── chinese_essay（record_type=WRITING，语文作文）
+    │
+    ├── english_writing（record_type=WRITING，英语写作）
+    │
+    ├── english_grammar_practice（record_type=GRAMMAR_PRACTICE）
+    │
+    ├── english_reading_practice（record_type=ENGLISH_READING）
+    │
+    ├── chinese_reading_practice（record_type=CHINESE_READING）
+    │
+    └── review_record（record_type=REVIEW）
+          └── 通过 review_plan 关联具体复习对象
+
+
+4.4 重要区分：两类「子表」
+
+  类型 A — 内容子表（记录「学了什么」）：
+    mistake, memory_point, vocabulary, reading_book,
+    chinese_essay, english_writing,
+    english_grammar_practice, english_reading_practice,
+    chinese_reading_practice
+
+  类型 B — 行为子表（记录「做了什么」）：
+    review_record, vocabulary_learning, memory_review（已删除）
+
+  学习记录模型应明确这个分类，避免混淆。
+
+
+4.5 需要各体系补充的字段
+
+  以下子表需要补充 learning_record_id 外键：
+
+    mistake             → 补充 learning_record_id
+    memory_point        → 补充 learning_record_id
+    vocabulary          → 补充 learning_record_id
+    reading_book        → 补充 learning_record_id
+    chinese_essay       → 补充 learning_record_id
+    english_writing     → 补充 learning_record_id
+    english_grammar_practice → 补充 learning_record_id
+    english_reading_practice → 补充 learning_record_id
+    chinese_reading_practice → 补充 learning_record_id
+    review_record       → 补充 learning_record_id
+
+
+
+五、冲突 4：KnowledgePoint 设计过于单薄（严重）
+══════════════════════════════════════════════
+
+5.1 现状
+
+  错误体系中定义的 knowledge_point：
+    id
+    point_code
+    point_name
+    subject_code
+    parent_id
+
+  问题：
+    - 只有扁平表，无法支撑「学科-章节-知识点」树
+    - 没有掌握度跟踪
+    - 没有薄弱点分析能力
+    - 无法支撑 AI 出题和成长报告
+
+
+5.2 解决方案：提升为独立的知识图谱模块
+
+  KnowledgePoint 从错误体系中抽出，升级为全局共享模型，
+  归入核心层，供所有业务体系引用。
+
+
+  5.2.1 knowledge_point（知识点主表）
+
+    ┌───────────────┬──────────┬─────────────────────────────────┐
+    │ 字段           │ 类型      │ 说明                            │
+    ├───────────────┼──────────┼─────────────────────────────────┤
+    │ id             │ UUID     │ 主键                            │
+    │ point_code     │ VARCHAR  │ 知识点编码（唯一）               │
+    │ point_name     │ VARCHAR  │ 知识点名称                       │
+    │ subject_code   │ ENUM     │ 所属学科                         │
+    │ parent_id      │ UUID     │ 父级知识点ID（NULL 为顶级）      │
+    │ level          │ ENUM     │ 层级（见下方枚举）               │
+    │ grade_code     │ ENUM     │ 适用年级（可选）                 │
+    │ description    │ TEXT     │ 知识点描述（可选）               │
+    │ sort_order     │ INT      │ 同级排序                        │
+    │ created_at     │ DATETIME │ 创建时间                         │
+    │ updated_at     │ DATETIME │ 更新时间                         │
+    └───────────────┴──────────┴─────────────────────────────────┘
+
+  level 枚举（知识点层级）：
+
+    SUBJECT     学科        例：数学
+    VOLUME      册          例：五年级上册
+    UNIT        单元        例：第三单元
+    CHAPTER     章节        例：分数的加减法
+    POINT       知识点      例：异分母分数加法
+
+  示例树：
+
+    数学（SUBJECT）
+    └── 五年级上册（VOLUME）
+        └── 第三单元（UNIT）
+            └── 分数的加减法（CHAPTER）
+                ├── 异分母分数加法（POINT）
+                ├── 异分母分数减法（POINT）
+                └── 分数加减混合运算（POINT）
+
+
+  5.2.2 knowledge_point_relation（知识点关联表）
+
+  用于描述知识点之间的前置依赖和关联关系。
+
+    ┌───────────────┬──────────┬─────────────────────────────────┐
+    │ 字段           │ 类型      │ 说明                            │
+    ├───────────────┼──────────┼─────────────────────────────────┤
+    │ id             │ UUID     │ 主键                            │
+    │ source_id      │ UUID     │ 源知识点ID                      │
+    │ target_id      │ UUID     │ 目标知识点ID                    │
+    │ relation_type  │ ENUM     │ 关系类型（见下方枚举）           │
+    │ created_at     │ DATETIME │ 创建时间                         │
+    └───────────────┴──────────┴─────────────────────────────────┘
+
+  relation_type 枚举：
+
+    PREREQUISITE    前置知识    例：分数概念 → 分数加减法
+    RELATED         关联知识    例：分数加法 ↔ 分数减法
+    EXTENDS         拓展知识    例：分数加法 → 分数混合运算
+
+
+  5.2.3 knowledge_mastery（知识点掌握度表）
+
+  按学生 × 知识点维度记录掌握情况，动态计算。
+
+    ┌──────────────────┬──────────┬──────────────────────────────────┐
+    │ 字段              │ 类型      │ 说明                             │
+    ├──────────────────┼──────────┼──────────────────────────────────┤
+    │ id                │ UUID     │ 主键                             │
+    │ student_id        │ UUID     │ 学生ID                           │
+    │ knowledge_point_id│ UUID     │ 知识点ID                         │
+    │ mastery_score     │ INT      │ 掌握分数（0~100）                │
+    │ error_count       │ INT      │ 累计错误次数                     │
+    │ correct_count     │ INT      │ 累计正确次数                     │
+    │ last_review_date  │ DATE     │ 最近复习日期                     │
+    │ trend             │ ENUM     │ 趋势（IMPROVING/STABLE/DECLINING）│
+    │ updated_at        │ DATETIME │ 更新时间                         │
+    └──────────────────┴──────────┴──────────────────────────────────┘
+
+  mastery_score 计算规则：
+
+    初始值：
+      新知识点 = 0
+
+    更新策略：
+      每次复习/做题后根据结果加权更新
+      PASS  → mastery_score = min(100, score + 增量)
+      FAIL  → mastery_score = max(0, score - 减量)
+
+    增量/减量参考值：
+      Day1  复习通过  +15
+      Day3  复习通过  +20
+      Day7  复习通过  +25
+      Day15 复习通过  +20
+      Day30 复习通过  +15
+      Day60 复习通过  +5
+      任何轮次 FAIL    -30（并重置复习计划）
+
+  trend 计算规则：
+
+    比较最近 3 次 mastery_score 变化：
+      持续上升 → IMPROVING
+      波动不大 → STABLE
+      持续下降 → DECLINING
+
+
+  5.2.4 薄弱知识点查询
+
+    薄弱知识点定义：
+      mastery_score < 60 且 error_count >= 2
+
+    查询维度：
+      按学科       → 数学最薄弱的 10 个知识点
+      按错因       → 因「知识问题」出错最多的知识点
+      按趋势       → DECLINING 的知识点（需要紧急关注）
+      按年级       → 五年级上学期薄弱点
+
+
+  5.2.5 与其他模块的关系
+
+    knowledge_point 被以下模块引用：
+
+    ┌──────────────┬──────────────────────────────────────────────┐
+    │ 引用模块      │ 引用方式                                    │
+    ├──────────────┼──────────────────────────────────────────────┤
+    │ 错误体系      │ mistake → mistake_knowledge_point → KP     │
+    │ 背诵体系      │ memory_point.knowledge_point_id → KP       │
+    │ 单词体系      │ vocabulary → vocabulary_knowledge_point → KP│
+    │ 复习体系      │ 通过 target 间接关联                       │
+    │ AI 出题          │ 根据薄弱 KP 生成题目 + 考前专项出题    │
+    │ 成长体系（待建）│ 根据 KP 掌握情况发放勋章                   │
+    └──────────────┴──────────────────────────────────────────────┘
+
+
+
+六、冲突 5：ReviewResult 语义不一致（低）
+════════════════════════════════════════
+
+6.1 冲突现状
+
+  复习体系：PASS / PARTIAL / FAIL
+  背诵体系：REMEMBERED / PARTIAL / FORGOTTEN
+
+  虽然语义等价，但标签不同容易造成开发混淆。
+
+
+6.2 解决方案
+
+  已在冲突 2 中统一为 PASS / PARTIAL / FAIL。
+
+  业务展示层根据 target_type 显示不同文案：
+
+    错题场景：PASS → "已掌握"    FAIL → "未掌握"
+    背诵场景：PASS → "已记住"    FAIL → "已遗忘"
+    单词场景：PASS → "拼写正确"  FAIL → "拼写错误"
+
+
+
+七、全局 ER 关系图（文本版）
+════════════════════════════
+
+7.1 核心层
+
+    ┌──────────┐
+    │  student  │ ← 学生（多个孩子）
+    └────┬─────┘
+         │ 1:N
+         ▼
+    ┌──────────────────┐
+    │ learning_record   │ ← 所有学习行为的根对象
+    └────┬─────────────┘
+         │
+         │ 1:1（根据 record_type 关联不同子表）
+         ▼
+    ┌─────────┬────────────┬──────────┬─────────────┬─────────┐
+    │ mistake │memory_point│vocabulary│reading_book │ writing │
+    └────┬────┴─────┬──────┴────┬─────┴──────┬──────┴────┬────┘
+         │          │           │            │           │
+
+
+7.2 错误体系子树
+
+    mistake
+    ├── ai_analysis            1:1  AI分析结果
+    ├── review（人工审核）      1:1  家长/老师审核
+    ├── correction             1:1  订正答案
+    └── mistake_knowledge_point  M:N  关联知识点
+                                  │
+                                  ▼
+                          knowledge_point
+
+
+7.3 背诵体系子树
+
+    memory_point
+    └── 复习由 review_plan 统一管理
+        （target_type=MEMORY）
+
+
+7.4 单词体系子树
+
+    vocabulary
+    ├── vocabulary_learning    1:N  学习过程记录
+    ├── vocabulary_mastery     1:1  当前掌握度
+    ├── vocabulary_error_type  1:N  错误类型记录
+    └── 复习由 review_plan 统一管理
+        （target_type=VOCAB）
+
+
+7.5 阅读体系子树
+
+    reading_book
+    └── reading_reflection     1:N  阅读感想
+
+
+7.6 知识图谱子树
+
+    knowledge_point（自关联树，parent_id）
+    ├── knowledge_point_relation  知识点间关系
+    └── knowledge_mastery         学生×知识点掌握度
+
+
+7.7 复习体系子树（统一调度引擎）
+
+    review_plan（多态关联）
+    │   target_type ∈ {MISTAKE, MEMORY, VOCAB, READING, WRITING}
+    │   target_id → 对应表的 id
+    │
+    └── review_record            1:N  每次复习结果
+
+
+7.8 全局汇总关系
+
+    student
+    ├── learning_record          1:N
+    ├── knowledge_mastery        1:N
+    ├── review_plan              1:N
+    ├── review_record            1:N（通过 review_plan）
+    ├── achievement（待建）       1:N
+    ├── praise_card（待建）       1:N
+    └── exam → exam_score（成绩追踪）  1:N
+
+
+
+八、模块间事件与接口定义
+════════════════════════
+
+8.1 设计原则
+
+  各体系模块之间不直接调用，而是通过「事件」解耦。
+
+  事件流向：
+
+    业务模块 → 发出事件 → 事件总线 → 消费模块 → 处理逻辑
+
+
+8.2 事件清单
+
+  ┌─────┬──────────────────────┬─────────────┬──────────────────────────┐
+  │ 序号 │ 事件名称              │ 发出模块     │ 消费模块及处理逻辑        │
+  ├─────┼──────────────────────┼─────────────┼──────────────────────────┤
+  │ E1  │ mistake.created       │ 错误体系     │ 复习体系：生成 review_plan│
+  │     │                       │             │ 知识图谱：更新 error_count│
+  │     │                       │             │ 学习记录：创建记录        │
+  ├─────┼──────────────────────┼─────────────┼──────────────────────────┤
+  │ E2  │ mistake.reviewed      │ 错误体系     │ 知识图谱：更新 mastery    │
+  │     │（人工审核完成）         │（人工审核）  │ 复习体系：调整计划        │
+  │     │                       │             │ 成长体系：检查勋章条件    │
+  ├─────┼──────────────────────┼─────────────┼──────────────────────────┤
+  │ E3  │ memory_point.created  │ 背诵体系     │ 复习体系：生成 review_plan│
+  │     │                       │             │ 学习记录：创建记录        │
+  ├─────┼──────────────────────┼─────────────┼──────────────────────────┤
+  │ E4  │ vocabulary.learned    │ 单词体系     │ 复习体系：生成 review_plan│
+  │     │                       │             │ 知识图谱：更新 mastery    │
+  │     │                       │             │ 学习记录：创建记录        │
+  ├─────┼──────────────────────┼─────────────┼──────────────────────────┤
+  │ E5  │ review.completed      │ 复习体系     │ 知识图谱：更新 mastery    │
+  │     │                       │             │ 成长体系：检查勋章条件    │
+  │     │                       │             │ 复习体系：生成下一轮计划  │
+  ├─────┼──────────────────────┼─────────────┼──────────────────────────┤
+  │ E6  │ review.failed         │ 复习体系     │ 知识图谱：降低 mastery    │
+  │     │                       │             │ 复习体系：重置复习计划    │
+  │     │                       │             │ 成长体系：标记薄弱点      │
+  ├─────┼──────────────────────┼─────────────┼──────────────────────────┤
+  │ E7  │ reading.finished      │ 阅读体系     │ 学习记录：创建记录        │
+  │     │                       │             │ 成长体系：检查阅读勋章    │
+  │     │                       │             │ 表扬体系：生成表扬卡      │
+  ├─────┼──────────────────────┼─────────────┼──────────────────────────┤
+  │ E8  │ mastery.milestone     │ 知识图谱     │ 成长体系：发放勋章        │
+  │     │（掌握度达到里程碑）     │             │ 表扬体系：生成表扬卡      │
+  ├─────┼──────────────────────┼─────────────┼──────────────────────────┤
+  │ E9  │ streak.achieved       │ 学习记录     │ 成长体系：坚持学习勋章    │
+  │     │（连续学习天数达标）     │             │ 表扬体系：生成表扬卡      │
+  ├─────┼──────────────────────┼─────────────┼──────────────────────────┤
+  │ E10 │ weakness.detected     │ 知识图谱     │ AI出题：生成针对性训练    │
+  │     │（检测到薄弱知识点）     │             │ 家长通知：推送薄弱点提醒  │
+  ├─────┼──────────────────────┼─────────────┼──────────────────────────┤
+  │ E11 │ exam_score.recorded   │ 成绩追踪     │ 学习画像：更新成绩维度    │
+  │     │（考试成绩录入）         │             │ 成长体系：检查进步勋章    │
+  │     │                       │             │ 表扬体系：显著进步表扬卡  │
+  ├─────┼──────────────────────┼─────────────┼──────────────────────────┤
+  │ E12 │ review.graduated      │ 复习体系     │ 成长体系：发放「复习毕业」│
+  │     │（pass_streak≥3 毕业）   │             │ 勋章 + 表扬卡             │
+  ├─────┼──────────────────────┼─────────────┼──────────────────────────┤
+  │ E13 │ training.mastered     │ AI出题体系   │ 成长体系：经验值 +20 EXP  │
+  │     │（训练连续做对 3 次）     │             │ 表扬体系：知识点攻克表扬卡 │
+  │     │                       │             │ 学习画像：更新掌握状态    │
+  └─────┴──────────────────────┴─────────────┴──────────────────────────┘
+
+
+8.3 事件处理优先级
+
+  高优先级（V1 必须实现）：
+    E1  mistake.created     → 自动生成复习计划
+    E2  mistake.reviewed    → 更新掌握度
+    E3  memory_point.created → 自动生成复习计划
+    E4  vocabulary.learned   → 自动生成复习计划
+    E5  review.completed     → 更新掌握度 + 生成下一轮
+    E6  review.failed        → 重置复习计划
+    E12 review.graduated     → 复习毕业勋章 + 表扬卡
+    E13 training.mastered    → 训练闭环，降低出题频率
+
+  中优先级（V2 实现）：
+    E7  reading.finished     → 阅读成长记录
+    E8  mastery.milestone    → 勋章发放
+    E9  streak.achieved      → 坚持勋章
+
+  低优先级（V3 实现）：
+    E10 weakness.detected    → AI 出题
+
+  中优先级（V2 实现，成绩追踪）：
+    E11 exam_score.recorded  → 有效性评估 + 画像更新
+
+
+
+九、各体系需执行的修改清单
+════════════════════════
+
+9.1 错误体系（修改 2 处）
+
+  [修改1] KnowledgePoint 移出错误体系，升级为全局共享模型
+    原位置：错误体系 第七节
+    新位置：架构整合 第五节（知识图谱模块）
+    影响：错误体系改为引用 knowledge_point，不再拥有该表
+
+  [修改2] 新增 mistake_knowledge_point 多对多关联表
+    原因：一道错题可能涉及多个知识点
+    表结构：
+      id
+      mistake_id        → 关联 mistake
+      knowledge_point_id → 关联 knowledge_point
+      is_primary         → 是否主要知识点
+
+
+9.2 背诵体系（修改 3 处）
+
+  [修改1] 删除 5.3.6 memory_review 表定义
+    替代：使用复习体系统一的 review_record
+
+  [修改2] 删除 5.3.8 review_plan 表定义
+    替代：使用复习体系统一的 review_plan（target_type=MEMORY）
+
+  [修改3] 补充 memory_point.learning_record_id 外键
+    原因：建立与 LearningRecord 的显式关联
+
+
+9.3 单词体系（修改 1 处）
+
+  [修改1] 删除 5.5.8 中自带的 ReviewPlan 引用描述
+    改为：明确声明使用复习体系统一 review_plan
+    补充：vocabulary 表增加 learning_record_id 外键
+
+
+9.4 复习体系（修改 1 处）
+
+  [修改1] 确认 review_plan 和 review_record 为全系统唯一复习模型
+    无需结构变更，仅需在设计文档中增加声明：
+    「本表为全系统统一复习记录和结果表，
+     所有业务模块的复习行为均通过本表管理。」
+
+
+9.5 阅读体系（修改 1 处）
+
+  [修改1] 补充 reading_book.learning_record_id 外键
+    原因：建立与 LearningRecord 的显式关联
+
+
+9.6 学习记录模型（修改 1 处）
+
+  [修改1] 更新 5.2.5 子表关系，改为实际表名映射
+
+    修改前：
+      LearningRecord
+      ├── MistakeRecord
+      ├── MemoryRecord
+      ├── VocabularyRecord
+      ├── ReadingRecord
+      ├── WritingRecord
+      └── ReviewRecord
+
+    修改后：
+      learning_record（根表）
+      │
+      ├── mistake              1:1（record_type=MISTAKE）
+      ├── memory_point         1:1（record_type=MEMORY）
+      ├── vocabulary           1:1（record_type=VOCAB）
+      ├── reading_book         1:1（record_type=READING）
+      ├── chinese_essay        1:1（record_type=WRITING，语文作文）
+      ├── english_writing      1:1（record_type=WRITING，英语写作）
+      ├── english_grammar_practice 1:1（record_type=GRAMMAR_PRACTICE）
+      ├── english_reading_practice 1:1（record_type=ENGLISH_READING）
+      ├── chinese_reading_practice 1:1（record_type=CHINESE_READING）
+      └── review_record        1:1（record_type=REVIEW）
+      │
+      │  以下为各体系的辅助表（非直接子表）：
+      │
+      ├── ai_analysis          属于 mistake
+      ├── review（人工审核）    属于 mistake
+      ├── correction           属于 mistake
+      ├── vocabulary_learning  属于 vocabulary
+      ├── vocabulary_mastery   属于 vocabulary
+      ├── vocabulary_error_type 属于 vocabulary
+      └── reading_reflection   属于 reading_book
+
+
+
+十、统一数据库表清单（全量）
+════════════════════════════
+
+  以下为架构整合后，全系统所有表的完整清单：
+
+  核心层（5 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │ 序号 │ 表名                     │ 状态       │
+  ├─────┼──────────────────────────┼───────────┤
+  │  1  │ student                  │ 待建       │
+  │  2  │ app_settings             │ 待建       │
+  │  3  │ semester                 │ 新增       │
+  │  4  │ learning_record          │ 已有设计   │
+  │  5  │ knowledge_point          │ 已有→升级  │
+  └─────┴──────────────────────────┴───────────┘
+
+  错误体系（5 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │  6  │ mistake                  │ 已有       │
+  │  7  │ ai_analysis              │ 已有       │
+  │  8  │ review（人工审核）        │ 已有       │
+  │  9  │ correction               │ 已有       │
+  │ 10  │ error_reason_master      │ 已有       │
+  └─────┴──────────────────────────┴───────────┘
+
+  错误-知识点关联（1 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │ 11  │ mistake_knowledge_point  │ 新增       │
+  └─────┴──────────────────────────┴───────────┘
+
+  背诵体系（2 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │ 12  │ memory_point             │ 已有→修改  │
+  │ 13  │ classical_text           │ 新增       │
+  └─────┴──────────────────────────┴───────────┘
+
+  单词体系（4 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │ 14  │ vocabulary               │ 已有       │
+  │ 15  │ vocabulary_learning      │ 已有       │
+  │ 16  │ vocabulary_mastery       │ 已有       │
+  │ 17  │ vocabulary_error_type    │ 新增       │
+  └─────┴──────────────────────────┴───────────┘
+
+  阅读体系（2 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │ 18  │ reading_book             │ 已有       │
+  │ 19  │ reading_reflection       │ 已有       │
+  └─────┴──────────────────────────┴───────────┘
+
+  知识图谱（3 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │ 20  │ knowledge_point_relation │ 新增       │
+  │ 21  │ knowledge_mastery        │ 新增       │
+  │ 22  │ vocabulary_knowledge_point│ 新增       │
+  └─────┴──────────────────────────┴───────────┘
+
+  复习体系（2 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │ 23  │ review_plan              │ 已有→确认  │
+  │ 24  │ review_record            │ 已有→确认  │
+  └─────┴──────────────────────────┴───────────┘
+
+  成绩追踪体系（2 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │ 25  │ exam                     │ 待建       │
+  │ 26  │ exam_score               │ 待建       │
+  └─────┴──────────────────────────┴───────────┘
+
+  成长体系（4 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │ 27  │ achievement_definition   │ 待建       │
+  │ 28  │ achievement_record       │ 待建       │
+  │ 29  │ student_growth           │ 待建       │
+  │ 30  │ exp_log                  │ 待建       │
+  └─────┴──────────────────────────┴───────────┘
+
+  表扬体系（2 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │ 31  │ praise_card              │ 待建       │
+  │ 32  │ praise_template          │ 待建       │
+  └─────┴──────────────────────────┴───────────┘
+
+  AI出题体系（3 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │ 33  │ question                 │ 待建       │
+  │ 34  │ quiz_session             │ 待建       │
+  │ 35  │ quiz_answer              │ 待建       │
+  └─────┴──────────────────────────┴───────────┘
+
+  英语能力树（3 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │ 36  │ english_grammar_practice │ 待建       │
+  │ 37  │ english_reading_practice │ 待建       │
+  │ 38  │ english_writing          │ 待建       │
+  └─────┴──────────────────────────┴───────────┘
+
+  语文模块（2 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │ 39  │ chinese_reading_practice │ 待建       │
+  │ 40  │ chinese_essay            │ 待建       │
+  └─────┴──────────────────────────┴───────────┘
+
+  学习画像体系（2 张表）
+  ┌─────┬──────────────────────────┬───────────┐
+  │ 41  │ student_profile          │ 待建       │
+  │ 42  │ profile_report           │ 待建       │
+  └─────┴──────────────────────────┴───────────┘
+
+  合计：42 张表
+  已有：14 张    新增：12 张    需修改：2 张    待建：14 张
+
+  简化说明：
+    原设计中的 family、user、parent_student_relation 三张表已删除。
+    替换为 student + app_settings，实现轻量级多学生管理。
+    所有数据存储在 Supabase 云端，不需要本机数据库。
+    不需要登录认证、角色权限、邀请机制。
+
+
+十一、执行顺序建议（已完成）
+══════════════════
+
+  以下所有步骤均已完成：
+
+  ✅ 第 1 步：修改背诵体系
+    → 废弃 memory_review 和独立 review_plan，统一使用复习体系
+
+  ✅ 第 2 步：确认复习体系
+    → review_plan + review_record 为全系统唯一标准
+
+  ✅ 第 3 步：修改学习记录模型
+    → 子表映射已更新为实际表名
+
+  ✅ 第 4 步：升级 KnowledgePoint
+    → 已抽出为全局模型（知识图谱体系）
+    → 已增加 level、description、sort_order 字段
+
+  ✅ 第 5 步：补充错误体系
+    → 已新增 mistake_knowledge_point 关联表
+
+  ✅ 第 6 步：各体系文档同步
+    → 设计冻结已更新，接口约定已添加
+    → 技术架构统一为 Supabase 云端
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+状态：V1.0 最终稿（全部完成）
+日期：2026-09-29
+影响范围：全部 17 个体系文档
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

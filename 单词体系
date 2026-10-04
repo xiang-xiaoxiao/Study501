@@ -1,0 +1,551 @@
+5.5 单词体系（Vocabulary System）
+5.5.1 设计目标
+
+单词体系用于管理英语学习中的：
+
+新单词
+易错单词
+高频错误单词
+固定搭配
+短语表达
+
+核心目标：
+
+Plain Text
+认识
+↓
+理解
+↓
+记忆
+↓
+运用
+↓
+掌握
+Show more lines
+
+单词体系不是简单记录：
+
+Plain Text
+背过
+没背过
+``
+Show more lines
+
+而是记录：
+
+Plain Text
+掌握过程
+Show more lines
+5.5.2 核心设计原则
+原则1：以单词为中心
+
+系统关注：
+
+Plain Text
+这个单词是否真正掌握
+Show more lines
+
+而不是：
+
+Plain Text
+今天背了多少单词
+Show more lines
+原则2：记录学习过程
+
+系统记录：
+
+学习
+拼写
+测试
+阅读应用
+复习
+
+形成完整成长轨迹。
+
+原则3：单词与复习体系集成
+
+所有单词自动进入复习体系。
+
+支持：
+
+Plain Text
+Day1
+Day3
+Day7
+Day15
+Day30
+Day60
+Show more lines
+
+复习周期。
+
+原则4：支持掌握度分析
+
+系统能够分析：
+
+单词掌握率
+高频错误单词
+高频拼写错误
+主题词汇掌握情况
+5.5.3 Vocabulary（单词主表）
+
+定义：
+
+一个英语单词或固定表达。
+
+表名：
+
+Plain Text
+vocabulary
+Show more lines
+
+字段：
+
+Plain Text
+id
+``
+Show more lines
+
+主键
+
+Plain Text
+student_id
+Show more lines
+
+学生ID
+
+Plain Text
+word
+Show more lines
+
+单词
+
+例如：
+
+Plain Text
+although
+environment
+however
+Show more lines
+Plain Text
+phonetic
+Show more lines
+
+音标
+
+例如：
+
+Plain Text
+/ɔːlˈðəʊ/
+Show more lines
+Plain Text
+meaning
+Show more lines
+
+中文释义
+
+Plain Text
+example_sentence
+Show more lines
+
+例句
+
+Plain Text
+grade_level
+ 
+Show more lines
+
+年级
+
+例如：
+
+Plain Text
+GRADE_5
+ 
+GRADE_6
+ 
+GRADE_7
+Show more lines
+Plain Text
+created_at
+Show more lines
+
+创建时间
+
+Plain Text
+updated_at
+Show more lines
+
+更新时间
+
+5.5.4 Vocabulary Learning（单词学习记录）
+
+记录每次学习行为。
+
+表名：
+
+Plain Text
+vocabulary_learning
+Show more lines
+
+字段：
+
+Plain Text
+id
+ 
+vocabulary_id
+ 
+learning_date
+ 
+learning_type
+ 
+learning_result
+ 
+comment
+ 
+created_at
+Show more lines
+Learning Type
+
+字段：
+
+Plain Text
+learning_type
+Show more lines
+
+取值：
+
+Plain Text
+LOOKUP
+查阅
+ 
+MEMORIZE
+背诵
+ 
+SPELLING
+拼写
+ 
+QUIZ
+测试
+ 
+READING
+阅读应用
+Show more lines
+Learning Result
+
+字段：
+
+Plain Text
+learning_result
+Show more lines
+
+取值：
+
+Plain Text
+PASS
+掌握
+ 
+PARTIAL
+部分掌握
+ 
+FAIL
+未掌握
+Show more lines
+5.5.5 单词错误类型
+
+用于分析单词学习中的主要问题。
+
+字段：
+
+Plain Text
+error_type
+Show more lines
+
+支持：
+
+Plain Text
+MEANING_ERROR
+词义错误
+ 
+SPELLING_ERROR
+拼写错误
+ 
+COLLOCATION_ERROR
+固定搭配错误
+ 
+GRAMMAR_ERROR
+语法使用错误
+Show more lines
+5.5.6 Vocabulary Mastery（单词掌握度）
+
+用于记录单词掌握情况。
+
+表名：
+
+Plain Text
+vocabulary_mastery
+Show more lines
+
+字段：
+
+Plain Text
+id
+ 
+student_id
+ 
+vocabulary_id
+ 
+mastery_score
+ 
+last_review_date
+ 
+updated_at
+Show more lines
+Mastery Score
+
+范围：
+
+Plain Text
+0 ~ 100
+``
+Show more lines
+
+示例：
+
+Plain Text
+20
+刚学习
+ 
+50
+基本认识
+ 
+80
+基本掌握
+ 
+95
+稳定掌握
+``
+Show more lines
+5.5.7 与知识点关系
+
+单词可关联知识点。
+
+例如：
+
+Plain Text
+英语
+└── 连词
+└── although
+Show more lines
+Plain Text
+英语
+└── 环境主题
+└── environment
+Show more lines
+
+用于统计：
+
+Plain Text
+哪个知识主题最薄弱
+Show more lines
+5.5.8 与复习体系关系
+
+单词自动进入复习体系。
+
+关系如下：
+
+Plain Text
+Vocabulary
+│
+▼
+review_plan (target_type=VOCAB)
+│
+▼
+review_record
+
+默认复习周期：
+
+Plain Text
+Day1
+ 
+Day3
+ 
+Day7
+ 
+Day15
+ 
+Day30
+ 
+Day60
+Show more lines
+5.5.9 统计分析
+
+系统支持以下统计。
+
+单词掌握率
+
+例如：
+
+Plain Text
+总单词数：500
+ 
+已掌握：380
+ 
+掌握率：76%
+Show more lines
+高频错误单词
+
+例如：
+
+Plain Text
+although
+ 
+错误次数：12
+Show more lines
+高频拼写错误
+
+例如：
+
+Plain Text
+environment
+ 
+拼写错误：8次
+Show more lines
+主题掌握情况
+
+例如：
+
+Plain Text
+学校主题
+ 
+掌握率：90%
+Show more lines
+Plain Text
+环境主题
+ 
+掌握率：60%
+Show more lines
+5.5.10 与 LearningRecord 关系（已更新）
+
+关系模型：
+
+Plain Text
+LearningRecord (learning_record)
+│
+└── Vocabulary (vocabulary)
+      │
+      ├── VocabularyLearning (vocabulary_learning)
+      ├── VocabularyMastery (vocabulary_mastery)
+      └── review_plan (target_type=VOCAB) → review_record
+  注：复习由复习体系统一管理，不再使用独立的 ReviewPlan。
+Show more lines
+
+说明：
+
+LearningRecord 负责统一记录学习行为
+Vocabulary 管理单词对象
+VocabularyLearning 管理学习过程
+VocabularyMastery 管理单词掌握度（0~100）
+复习体系统一管理复习任务（review_plan + review_record）
+5.5.11 最终设计冻结（Design Frozen）
+
+单词体系核心模型：
+
+Plain Text
+Vocabulary
+ 
+VocabularyLearning
+ 
+VocabularyMastery
+Show more lines
+
+  注：复习由复习体系统一管理（review_plan + review_record）
+  注：VocabularyMastery 追踪单词掌握度，knowledge_mastery（知识图谱体系）追踪知识点掌握度，二者独立维护
+
+核心目标：
+
+Plain Text
+记录单词从认识到掌握的完整成长过程
+``
+Show more lines
+
+而不是：
+
+Plain Text
+记录今天背过哪些单词
+Show more lines
+接口约定（Event & Interface Contract）
+════════════════════════════════════
+
+本模块发出的事件：
+
+  事件 E4：vocabulary.learned
+    触发时机：新单词录入或单词学习记录创建
+    携带数据：vocabulary_id, student_id, learning_type, learning_result
+    消费方：
+      → 复习体系：为该单词生成 review_plan（target_type=VOCAB）
+      → 知识图谱：更新 knowledge_mastery（如果关联了知识点）
+      → 学习记录：创建 learning_record（record_type=VOCAB）
+
+  事件 E4b：vocabulary.mastered
+    触发时机：vocabulary_mastery.mastery_score 首次 >= 80
+    携带数据：vocabulary_id, student_id, mastery_score
+    消费方：
+      → 成长体系：检查 MASTERY 类勋章（单词收藏家、单词大师）
+      → 成长体系：经验值 +5 EXP
+      → 表扬体系：检查是否生成 MILESTONE 表扬卡
+
+  事件：vocabulary.error_detected
+    触发时机：单词学习中发现错误（拼写/词义/搭配）
+    携带数据：vocabulary_id, student_id, error_type
+    消费方：
+      → 知识图谱：降低 mastery_score
+      → 复习体系：调整复习计划（增加复习频率）
+
+本模块消费的外部事件：
+
+  事件 E5：review.completed（来自复习体系）
+    处理逻辑：
+      如果 target_type = VOCAB：
+        根据 review_result 更新 vocabulary_mastery
+        PASS → mastery_score 增加（增量根据 review_round）
+        PARTIAL → mastery_score 增加（增量/2）
+        FAIL → mastery_score 减少
+        更新 last_review_date
+
+  事件 E6：review.failed（来自复习体系）
+    处理逻辑：
+      如果 target_type = VOCAB：
+        mastery_score -= 30（最低为 0）
+        重置复习计划（重新从 Day1 开始）
+
+接口数据格式：
+
+  vocabulary.learned 事件体：
+    {
+      "event": "vocabulary.learned",
+      "vocabulary_id": "uuid",
+      "student_id": "uuid",
+      "word": "although",
+      "learning_type": "SPELLING",
+      "learning_result": "PASS",
+      "knowledge_point_id": "uuid",
+      "created_at": "2026-10-01T10:30:00Z"
+    }
+
+
+V1 范围
+
+支持：
+
+单词录入
+单词学习记录
+复习计划
+掌握度计算
+高频错误分析
+
+暂不支持：
+
+发音评测
+AI口语训练
+真人跟读评分
